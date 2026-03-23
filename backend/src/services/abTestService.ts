@@ -2,6 +2,7 @@ import { PrismaClient } from '@prisma/client'
 import { logger } from '../utils/logger'
 
 const prisma = new PrismaClient()
+const prismaAny = prisma as any
 
 export interface ABTestConfig {
   name: string
@@ -42,13 +43,15 @@ export class ABTestService {
       throw new Error('Variant traffic must sum to 100%')
     }
 
-    const test = await prisma.aBTest.create({
+    const test = await prismaAny.aBTest.create({
       data: {
         name: config.name,
         description: config.description,
         variants: config.variants,
         metrics: config.metrics,
-        endDate: config.duration ? new Date(Date.now() + config.duration * 24 * 60 * 60 * 1000) : null,
+        endDate: config.duration
+          ? new Date(Date.now() + config.duration * 24 * 60 * 60 * 1000)
+          : null,
       },
     })
 
@@ -57,7 +60,7 @@ export class ABTestService {
   }
 
   async assignUser(userId: string, testName: string): Promise<string> {
-    const test = await prisma.aBTest.findFirst({
+    const test = await prismaAny.aBTest.findFirst({
       where: { name: testName, status: 'active' },
     })
 
@@ -73,7 +76,7 @@ export class ABTestService {
 
     // Assign user to variant based on traffic allocation
     const variant = this.assignVariant(test.variants as any, userId)
-    
+
     // Track assignment
     await this.trackEvent(userId, testName, 'assigned', { variant })
 
@@ -97,7 +100,7 @@ export class ABTestService {
   }
 
   async getTestResults(testName: string): Promise<ABTestResult[]> {
-    const test = await prisma.aBTest.findFirst({
+    const test = await prismaAny.aBTest.findFirst({
       where: { name: testName },
     })
 
@@ -116,7 +119,7 @@ export class ABTestService {
     // Determine winner if test has sufficient data
     if (this.hasSufficientData(results)) {
       const winner = this.determineWinner(results)
-      results.forEach(r => {
+      results.forEach((r) => {
         r.isWinner = r.variant === winner
       })
     }
@@ -125,7 +128,7 @@ export class ABTestService {
   }
 
   async stopTest(testName: string) {
-    const test = await prisma.aBTest.findFirst({
+    const test = await prismaAny.aBTest.findFirst({
       where: { name: testName },
     })
 
@@ -135,9 +138,9 @@ export class ABTestService {
 
     // Calculate final results
     const results = await this.getTestResults(testName)
-    const winner = results.find(r => r.isWinner)
+    const winner = results.find((r) => r.isWinner)
 
-    await prisma.aBTest.update({
+    await prismaAny.aBTest.update({
       where: { id: test.id },
       data: {
         status: 'completed',
@@ -146,7 +149,7 @@ export class ABTestService {
           finalResults: results,
           winner: winner?.variant,
           confidence: winner?.confidenceInterval,
-        },
+        } as any,
       },
     })
 
@@ -174,7 +177,7 @@ export class ABTestService {
     let hash = 0
     for (let i = 0; i < str.length; i++) {
       const char = str.charCodeAt(i)
-      hash = ((hash << 5) - hash) + char
+      hash = (hash << 5) - hash + char
       hash = hash & hash // Convert to 32-bit integer
     }
     return Math.abs(hash)
@@ -182,7 +185,7 @@ export class ABTestService {
 
   private async getUserAssignment(userId: string, testName: string): Promise<string | null> {
     // Check user's previous assignment from analytics events
-    const assignment = await prisma.analyticsEvent.findFirst({
+    const assignment = await prismaAny.analyticsEvent.findFirst({
       where: {
         userId,
         eventType: 'ab_test_assigned',
@@ -194,18 +197,18 @@ export class ABTestService {
       orderBy: { timestamp: 'desc' },
     })
 
-    return assignment?.eventData?.variant || null
+    return (assignment?.eventData as any)?.variant || null
   }
 
   private async trackEvent(userId: string, testName: string, eventType: string, data: any) {
-    await prisma.analyticsEvent.create({
+    await prismaAny.analyticsEvent.create({
       data: {
         eventType: `ab_test_${eventType}`,
         userId,
         eventData: {
           testName,
           ...data,
-        },
+        } as any,
         timestamp: new Date(),
       },
     })
@@ -213,37 +216,33 @@ export class ABTestService {
 
   private async calculateVariantResults(testName: string, variant: string): Promise<ABTestResult> {
     // Get visitors for this variant
-    const visitors = await prisma.analyticsEvent.count({
+    const visitors = await prismaAny.analyticsEvent.count({
       where: {
         eventType: 'ab_test_assigned',
-        eventData: {
-          path: ['testName'],
-          equals: testName,
-        },
-        eventData: {
-          path: ['variant'],
-          equals: variant,
-        },
+        AND: [
+          { eventData: { path: ['testName'], equals: testName } },
+          { eventData: { path: ['variant'], equals: variant } },
+        ],
       },
     })
 
     // Get conversions for this variant
-    const conversions = await prisma.analyticsEvent.count({
+    const conversions = await prismaAny.analyticsEvent.count({
       where: {
         eventType: 'ab_test_conversion',
-        eventData: {
-          path: ['testName'],
-          equals: testName,
-        },
-        eventData: {
-          path: ['variant'],
-          equals: variant,
-        },
+        AND: [
+          { eventData: { path: ['testName'], equals: testName } },
+          { eventData: { path: ['variant'], equals: variant } },
+        ],
       },
     })
 
     const conversionRate = visitors > 0 ? conversions / visitors : 0
-    const confidenceInterval = this.calculateConfidenceInterval(conversions, visitors, conversionRate)
+    const confidenceInterval = this.calculateConfidenceInterval(
+      conversions,
+      visitors,
+      conversionRate
+    )
 
     return {
       variant,
@@ -254,7 +253,11 @@ export class ABTestService {
     }
   }
 
-  private calculateConfidenceInterval(conversions: number, visitors: number, rate: number): { lower: number; upper: number } {
+  private calculateConfidenceInterval(
+    conversions: number,
+    visitors: number,
+    rate: number
+  ): { lower: number; upper: number } {
     if (visitors === 0) {
       return { lower: 0, upper: 0 }
     }
@@ -264,9 +267,9 @@ export class ABTestService {
     const n = visitors
     const p = rate
 
-    const denominator = 1 + z * z / n
-    const center = p + z * z / (2 * n)
-    const margin = z * Math.sqrt((p * (1 - p) + z * z / (4 * n)) / n)
+    const denominator = 1 + (z * z) / n
+    const center = p + (z * z) / (2 * n)
+    const margin = z * Math.sqrt((p * (1 - p) + (z * z) / (4 * n)) / n)
 
     return {
       lower: Math.max(0, (center - margin) / denominator),
@@ -276,7 +279,7 @@ export class ABTestService {
 
   private hasSufficientData(results: ABTestResult[]): boolean {
     const minSampleSize = 100 // Minimum visitors per variant
-    return results.every(r => r.visitors >= minSampleSize)
+    return results.every((r) => r.visitors >= minSampleSize)
   }
 
   private determineWinner(results: ABTestResult[]): string | null {
@@ -305,8 +308,8 @@ export class ABTestService {
     const n2 = variant2.visitors
 
     const pooledP = (variant1.conversions + variant2.conversions) / (n1 + n2)
-    const standardError = Math.sqrt(pooledP * (1 - pooledP) * (1/n1 + 1/n2))
-    
+    const standardError = Math.sqrt(pooledP * (1 - pooledP) * (1 / n1 + 1 / n2))
+
     if (standardError === 0) {
       return 1
     }
@@ -333,9 +336,22 @@ export class ABTestService {
     x = Math.abs(x) / Math.sqrt(2.0)
 
     const t = 1.0 / (1.0 + p * x)
-    const y = 1.0 - (((((a5 * t + a4) * t) + a3) * t + a2) * t + a1) * t * Math.exp(-x * x)
+    const y = 1.0 - ((((a5 * t + a4) * t + a3) * t + a2) * t + a1) * t * Math.exp(-x * x)
 
     return 0.5 * (1.0 + sign * y)
+  }
+
+  private async updateTestResults(testName: string): Promise<void> {
+    const test = await prismaAny.aBTest.findFirst({ where: { name: testName } })
+    if (!test) {
+      return
+    }
+
+    const results = await this.getTestResults(testName)
+    await prismaAny.aBTest.update({
+      where: { id: test.id },
+      data: { results: { interimResults: results, updatedAt: new Date().toISOString() } as any },
+    })
   }
 
   async getActiveTests() {

@@ -8,7 +8,8 @@ export const disputesRouter = express.Router()
 // File a dispute
 // POST /api/disputes
 // body: { groupId, type, summary?, evidence?: [{type, content}] }
-export const validateDisputeType = (t: any) => ['non_payment','fraud','rule_violation'].includes(t)
+export const validateDisputeType = (t: any) =>
+  ['non_payment', 'fraud', 'rule_violation'].includes(t)
 
 disputesRouter.post('/', authMiddleware, async (req: AuthRequest, res) => {
   try {
@@ -16,8 +17,15 @@ disputesRouter.post('/', authMiddleware, async (req: AuthRequest, res) => {
     if (!groupId || !type) return res.status(400).json({ error: 'groupId and type required' })
     if (!validateDisputeType(type)) return res.status(400).json({ error: 'invalid dispute type' })
 
-    const user = req.user!.publicKey
-    const dispute = await disputeService.fileDispute(groupId, user, type, summary, evidence || [])
+    const user = String(req.user?.publicKey || '')
+    if (!user) return res.status(401).json({ error: 'Unauthorized' })
+    const dispute = await disputeService.fileDispute(
+      String(groupId),
+      user,
+      type as any,
+      summary,
+      evidence || []
+    )
     res.status(201).json({ success: true, dispute })
   } catch (err: any) {
     res.status(400).json({ error: err.message })
@@ -42,9 +50,11 @@ disputesRouter.get('/group/:groupId', async (req, res) => {
 disputesRouter.post('/:id/vote', authMiddleware, async (req: AuthRequest, res) => {
   try {
     const vote = req.body.vote
-    if (!['yes','no'].includes(vote)) return res.status(400).json({ error: 'vote must be yes or no' })
-    const user = req.user!.publicKey
-    const dispute = await disputeService.voteOnDispute(req.params.id, user, vote)
+    if (!['yes', 'no'].includes(vote))
+      return res.status(400).json({ error: 'vote must be yes or no' })
+    const user = String(req.user?.publicKey || '')
+    if (!user) return res.status(401).json({ error: 'Unauthorized' })
+    const dispute = await disputeService.voteOnDispute(String(req.params.id), user, vote as any)
     res.json({ success: true, dispute })
   } catch (err: any) {
     res.status(400).json({ error: err.message })

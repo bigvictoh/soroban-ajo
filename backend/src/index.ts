@@ -19,7 +19,7 @@ import { setupSwagger } from './swagger'
 import { apiLimiter, strictLimiter } from './middleware/rateLimiter'
 import { startWorkers, stopWorkers } from './jobs/jobWorkers'
 import { startScheduler, stopScheduler } from './cron/scheduler'
-import { kycRouter } from './routes/kyc'  // new KYC routes
+import { kycRouter } from './routes/kyc' // new KYC routes
 
 dotenv.config()
 
@@ -27,10 +27,14 @@ const app = express()
 const PORT = process.env.PORT || 3001
 // Middleware
 app.use(helmet())
-app.use(cors({
-  origin: process.env.FRONTEND_URL ? [process.env.FRONTEND_URL, 'http://localhost:3000', 'http://localhost:5173'] : ['http://localhost:3000', 'http://localhost:5173'],
-  credentials: true
-}))
+app.use(
+  cors({
+    origin: process.env.FRONTEND_URL
+      ? [process.env.FRONTEND_URL, 'http://localhost:3000', 'http://localhost:5173']
+      : ['http://localhost:3000', 'http://localhost:5173'],
+    credentials: true,
+  })
+)
 app.use(requestLogger)
 app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
@@ -50,6 +54,7 @@ app.use('/api/email', emailRouter)
 app.use('/api/jobs', jobsRouter)
 app.use('/api/gamification', gamificationRouter)
 app.use('/api/goals', goalsRouter)
+app.use('/api/kyc', kycRouter)
 
 // Disputes
 import { disputesRouter } from './routes/disputes'
@@ -59,7 +64,7 @@ app.use('/api/disputes', disputesRouter)
 app.use((req, res) => {
   res.status(404).json({
     success: false,
-    error: 'Not found'
+    error: 'Not found',
   })
 })
 
@@ -106,4 +111,3 @@ process.on('SIGTERM', shutdown)
 process.on('SIGINT', shutdown)
 
 export default app
-

@@ -1,24 +1,27 @@
 import { z } from 'zod'
+import { createModuleLogger } from '../utils/logger'
+
+const logger = createModuleLogger('Config')
 
 // Environment variable schema with validation
 const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
   PORT: z.string().transform(Number).default('3001'),
-  
+
   // Frontend
   FRONTEND_URL: z.string().url().default('http://localhost:3000'),
-  
+
   // Soroban/Stellar Configuration
   SOROBAN_RPC_URL: z.string().url(),
   SOROBAN_NETWORK_PASSPHRASE: z.string(),
   SOROBAN_CONTRACT_ID: z.string().min(1),
   SOROBAN_NETWORK: z.enum(['testnet', 'mainnet', 'futurenet']).default('testnet'),
   SOROBAN_SIMULATION_ACCOUNT: z.string().optional(),
-  
+
   // JWT Authentication
   JWT_SECRET: z.string().min(32).optional(),
   JWT_EXPIRES_IN: z.string().default('7d'),
-  
+
   // Webhook Configuration
   WEBHOOK_URLS: z.string().optional(),
   WEBHOOK_SECRETS: z.string().optional(),
@@ -32,9 +35,12 @@ function loadConfig(): Config {
     return envSchema.parse(process.env)
   } catch (error) {
     if (error instanceof z.ZodError) {
-      console.error('❌ Invalid environment configuration:')
+      logger.error('Invalid environment configuration')
       error.errors.forEach((err) => {
-        console.error(`  - ${err.path.join('.')}: ${err.message}`)
+        logger.error('Environment configuration issue', {
+          path: err.path.join('.'),
+          message: err.message,
+        })
       })
       process.exit(1)
     }

@@ -1,4 +1,7 @@
 import * as crypto from 'crypto'
+import { createModuleLogger } from '../utils/logger'
+
+const logger = createModuleLogger('WebhookService')
 
 /**
  * Webhook Event Types
@@ -89,7 +92,12 @@ export class WebhookService {
     }
 
     this.endpoints.set(id, webhookEndpoint)
-    // Webhook endpoint registered
+    logger.info('Webhook endpoint registered', {
+      endpointId: id,
+      url: endpoint.url,
+      events: endpoint.events,
+      enabled: endpoint.enabled,
+    })
     return id
   }
 
@@ -98,7 +106,7 @@ export class WebhookService {
    */
   unregisterEndpoint(id: string): boolean {
     const deleted = this.endpoints.delete(id)
-    // Webhook endpoint unregistered
+    logger.info('Webhook endpoint unregistered', { endpointId: id, deleted })
     return deleted
   }
 
@@ -110,7 +118,10 @@ export class WebhookService {
     if (!endpoint) return false
 
     this.endpoints.set(id, { ...endpoint, ...updates })
-    // Webhook endpoint updated
+    logger.info('Webhook endpoint updated', {
+      endpointId: id,
+      updates,
+    })
     return true
   }
 
@@ -144,8 +155,12 @@ export class WebhookService {
       metadata,
     }
 
-    // Webhook event triggered
-    // Add to delivery queue
+    logger.info('Webhook event queued', {
+      event,
+      webhookId: payload.id,
+      metadata,
+    })
+
     this.deliveryQueue.push(payload)
 
     // Process queue if not already processing
@@ -179,12 +194,11 @@ export class WebhookService {
    */
   private async deliverPayload(payload: WebhookPayload): Promise<void> {
     const subscribedEndpoints = Array.from(this.endpoints.values()).filter(
-      (endpoint) =>
-        endpoint.enabled && endpoint.events.includes(payload.event)
+      (endpoint) => endpoint.enabled && endpoint.events.includes(payload.event)
     )
 
     if (subscribedEndpoints.length === 0) {
-      // No endpoints subscribed to event
+      logger.debug('No webhook subscribers for event', { event: payload.event })
       return
     }
 
@@ -230,7 +244,12 @@ export class WebhookService {
       })
 
       if (response.ok) {
-        // Webhook delivered successfully
+        logger.info('Webhook delivered successfully', {
+          endpointId: endpoint.id,
+          event: payload.event,
+          statusCode: response.status,
+          attempt,
+        })
         return {
           success: true,
           statusCode: response.status,
@@ -242,17 +261,19 @@ export class WebhookService {
       // Non-2xx response
       throw new Error(`HTTP ${response.status}: ${response.statusText}`)
     } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : 'Unknown error'
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error'
 
-      console.error(
-        `❌ Webhook delivery failed: ${endpoint.id} (attempt ${attempt}/${maxRetries})`,
-        errorMessage
-      )
+      logger.error('Webhook delivery failed', {
+        endpointId: endpoint.id,
+        event: payload.event,
+        attempt,
+        maxRetries,
+        error,
+        errorMessage,
+      })
 
       // Retry logic
       if (attempt < maxRetries) {
-        // Retrying webhook delivery
         await this.sleep(retryDelay * attempt) // Exponential backoff
         return this.deliverToEndpoint(endpoint, payload, attempt + 1)
       }
@@ -271,25 +292,15 @@ export class WebhookService {
    */
   private generateSignature(payload: WebhookPayload, secret: string): string {
     const payloadString = JSON.stringify(payload)
-    return crypto
-      .createHmac('sha256', secret)
-      .update(payloadString)
-      .digest('hex')
+    return crypto.createHmac('sha256', secret).update(payloadString).digest('hex')
   }
 
   /**
    * Verify webhook signature
    */
-  verifySignature(
-    payload: WebhookPayload,
-    signature: string,
-    secret: string
-  ): boolean {
+  verifySignature(payload: WebhookPayload, signature: string, secret: string): boolean {
     const expectedSignature = this.generateSignature(payload, secret)
-    return crypto.timingSafeEqual(
-      Buffer.from(signature),
-      Buffer.from(expectedSignature)
-    )
+    return crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expectedSignature))
   }
 
   /**
@@ -311,7 +322,9 @@ export class WebhookService {
       }
     })
 
-    // Webhook endpoints loaded
+    logger.info('Webhook endpoints loaded from environment', {
+      configuredEndpoints: webhookUrls.filter((url) => url.trim()).length,
+    })
   }
 
   /**
@@ -338,9 +351,7 @@ export class WebhookService {
   } {
     return {
       totalEndpoints: this.endpoints.size,
-      activeEndpoints: Array.from(this.endpoints.values()).filter(
-        (e) => e.enabled
-      ).length,
+      activeEndpoints: Array.from(this.endpoints.values()).filter((e) => e.enabled).length,
       queuedEvents: this.deliveryQueue.length,
     }
   }

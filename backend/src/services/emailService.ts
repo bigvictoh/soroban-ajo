@@ -1,30 +1,33 @@
-import sgMail from '@sendgrid/mail';
+import sgMail from '@sendgrid/mail'
+import { createModuleLogger } from '../utils/logger'
+
+const logger = createModuleLogger('EmailService')
 
 // Initialize SendGrid
 if (process.env.SENDGRID_API_KEY) {
-  sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+  sgMail.setApiKey(process.env.SENDGRID_API_KEY)
 }
 
 export interface EmailOptions {
-  to: string;
-  subject: string;
-  html: string;
-  text?: string;
+  to: string
+  subject: string
+  html: string
+  text?: string
 }
 
 export class EmailService {
-  private fromEmail: string;
-  private isEnabled: boolean;
+  private fromEmail: string
+  private isEnabled: boolean
 
   constructor() {
-    this.fromEmail = process.env.EMAIL_FROM || 'noreply@ajo.app';
-    this.isEnabled = !!process.env.SENDGRID_API_KEY;
+    this.fromEmail = process.env.EMAIL_FROM || 'noreply@ajo.app'
+    this.isEnabled = !!process.env.SENDGRID_API_KEY
   }
 
   async sendEmail(options: EmailOptions): Promise<boolean> {
     if (!this.isEnabled) {
       // Service disabled - no API key configured
-      return false;
+      return false
     }
 
     try {
@@ -34,11 +37,15 @@ export class EmailService {
         subject: options.subject,
         html: options.html,
         text: options.text || options.html.replace(/<[^>]*>/g, ''),
-      });
-      return true;
+      })
+      return true
     } catch (error) {
-      console.error('Email send error:', error);
-      return false;
+      logger.error('Email send failed', {
+        error,
+        to: options.to,
+        subject: options.subject,
+      })
+      return false
     }
   }
 
@@ -47,56 +54,77 @@ export class EmailService {
       to,
       subject: 'Welcome to Ajo!',
       html: this.getWelcomeTemplate(name),
-    });
+    })
   }
 
-  async sendContributionReminder(to: string, groupName: string, amount: string, dueDate: string): Promise<boolean> {
+  async sendContributionReminder(
+    to: string,
+    groupName: string,
+    amount: string,
+    dueDate: string
+  ): Promise<boolean> {
     return this.sendEmail({
       to,
       subject: `Contribution Reminder: ${groupName}`,
       html: this.getContributionReminderTemplate(groupName, amount, dueDate),
-    });
+    })
   }
 
-  async sendPayoutNotification(to: string, groupName: string, amount: string, txHash: string): Promise<boolean> {
+  async sendPayoutNotification(
+    to: string,
+    groupName: string,
+    amount: string,
+    txHash: string
+  ): Promise<boolean> {
     return this.sendEmail({
       to,
       subject: `Payout Received: ${groupName}`,
       html: this.getPayoutTemplate(groupName, amount, txHash),
-    });
+    })
   }
 
-  async sendGroupInvitation(to: string, groupName: string, inviterName: string, inviteLink: string): Promise<boolean> {
+  async sendGroupInvitation(
+    to: string,
+    groupName: string,
+    inviterName: string,
+    inviteLink: string
+  ): Promise<boolean> {
     return this.sendEmail({
       to,
       subject: `You're invited to join ${groupName}`,
       html: this.getInvitationTemplate(groupName, inviterName, inviteLink),
-    });
+    })
   }
 
-  async sendWeeklySummary(to: string, data: { groupName: string; contributions: number; balance: string }): Promise<boolean> {
+  async sendWeeklySummary(
+    to: string,
+    data: { groupName: string; contributions: number; balance: string }
+  ): Promise<boolean> {
     return this.sendEmail({
       to,
       subject: 'Your Weekly Ajo Summary',
       html: this.getWeeklySummaryTemplate(data),
-    });
+    })
   }
 
-  async sendTransactionReceipt(to: string, data: { groupName: string; amount: string; txHash: string; date: string }): Promise<boolean> {
+  async sendTransactionReceipt(
+    to: string,
+    data: { groupName: string; amount: string; txHash: string; date: string }
+  ): Promise<boolean> {
     return this.sendEmail({
       to,
       subject: 'Transaction Receipt',
       html: this.getReceiptTemplate(data),
-    });
+    })
   }
 
   async sendVerificationEmail(to: string, token: string): Promise<boolean> {
-    const verifyLink = `${process.env.FRONTEND_URL}/verify-email?token=${token}`;
+    const verifyLink = `${process.env.FRONTEND_URL}/verify-email?token=${token}`
     return this.sendEmail({
       to,
       subject: 'Verify Your Email',
       html: this.getVerificationTemplate(verifyLink),
-    });
+    })
   }
 
   // Email Templates
@@ -112,10 +140,14 @@ export class EmailService {
           <a href="${process.env.FRONTEND_URL}/unsubscribe">Unsubscribe</a>
         </p>
       </div>
-    `;
+    `
   }
 
-  private getContributionReminderTemplate(groupName: string, amount: string, dueDate: string): string {
+  private getContributionReminderTemplate(
+    groupName: string,
+    amount: string,
+    dueDate: string
+  ): string {
     return `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <h2 style="color: #4F46E5;">Contribution Reminder</h2>
@@ -129,7 +161,7 @@ export class EmailService {
           <a href="${process.env.FRONTEND_URL}/unsubscribe">Unsubscribe</a>
         </p>
       </div>
-    `;
+    `
   }
 
   private getPayoutTemplate(groupName: string, amount: string, txHash: string): string {
@@ -146,10 +178,14 @@ export class EmailService {
           <a href="${process.env.FRONTEND_URL}/unsubscribe">Unsubscribe</a>
         </p>
       </div>
-    `;
+    `
   }
 
-  private getInvitationTemplate(groupName: string, inviterName: string, inviteLink: string): string {
+  private getInvitationTemplate(
+    groupName: string,
+    inviterName: string,
+    inviteLink: string
+  ): string {
     return `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <h2 style="color: #4F46E5;">You're Invited!</h2>
@@ -160,10 +196,14 @@ export class EmailService {
           <a href="${process.env.FRONTEND_URL}/unsubscribe">Unsubscribe</a>
         </p>
       </div>
-    `;
+    `
   }
 
-  private getWeeklySummaryTemplate(data: { groupName: string; contributions: number; balance: string }): string {
+  private getWeeklySummaryTemplate(data: {
+    groupName: string
+    contributions: number
+    balance: string
+  }): string {
     return `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <h2 style="color: #4F46E5;">Your Weekly Summary</h2>
@@ -177,10 +217,15 @@ export class EmailService {
           <a href="${process.env.FRONTEND_URL}/unsubscribe">Unsubscribe</a>
         </p>
       </div>
-    `;
+    `
   }
 
-  private getReceiptTemplate(data: { groupName: string; amount: string; txHash: string; date: string }): string {
+  private getReceiptTemplate(data: {
+    groupName: string
+    amount: string
+    txHash: string
+    date: string
+  }): string {
     return `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <h2 style="color: #4F46E5;">Transaction Receipt</h2>
@@ -196,7 +241,7 @@ export class EmailService {
           <a href="${process.env.FRONTEND_URL}/unsubscribe">Unsubscribe</a>
         </p>
       </div>
-    `;
+    `
   }
 
   private getVerificationTemplate(verifyLink: string): string {
@@ -210,8 +255,8 @@ export class EmailService {
           If you didn't request this, please ignore this email.
         </p>
       </div>
-    `;
+    `
   }
 }
 
-export const emailService = new EmailService();
+export const emailService = new EmailService()

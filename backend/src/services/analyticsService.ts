@@ -1,7 +1,9 @@
 import * as fs from 'fs'
 import * as path from 'path'
+import { createModuleLogger } from '../utils/logger'
 
 const DATA_FILE = path.join(__dirname, '../../analytics-data.json')
+const logger = createModuleLogger('AnalyticsService')
 
 interface StoredData {
   events: any[]
@@ -20,7 +22,7 @@ function saveData(data: StoredData) {
   try {
     fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2))
   } catch (err) {
-    console.error('[AnalyticsService] Failed to save data:', err)
+    logger.error('Failed to save analytics data', { error: err, file: DATA_FILE })
   }
 }
 

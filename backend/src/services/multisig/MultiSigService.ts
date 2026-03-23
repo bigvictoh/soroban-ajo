@@ -1,5 +1,5 @@
-import { prisma } from '../../config/database';
-import { logger } from '../../utils/logger';
+import { prisma } from '../../config/database'
+import { logger } from '../../utils/logger'
 import {
   MultiSigNotFoundError,
   ProposalNotFoundError,
@@ -9,36 +9,36 @@ import {
   DuplicateSignatureError,
   UnauthorizedSignerError,
   InvalidThresholdError,
-} from '../../errors/MultiSigError';
+} from '../../errors/MultiSigError'
 import {
   ProposalStatus,
   OperationType,
   MultiSigConfigData,
   ProposalMetadata,
-} from '../../types/multisig';
-import * as StellarSdk from 'stellar-sdk';
+} from '../../types/multisig'
+import * as StellarSdk from 'stellar-sdk'
 
 export class MultiSigService {
   async createMultiSigConfig(data: MultiSigConfigData): Promise<{
-    id: string;
-    groupId: string;
-    threshold: number;
-    totalSigners: number;
+    id: string
+    groupId: string
+    threshold: number
+    totalSigners: number
   }> {
-    const { groupId, threshold, signers } = data;
+    const { groupId, threshold, signers } = data
 
     if (threshold > signers.length) {
-      throw new InvalidThresholdError(threshold, signers.length);
+      throw new InvalidThresholdError(threshold, signers.length)
     }
 
     return await prisma.$transaction(async (tx) => {
       // Check if config already exists
       const existing = await tx.multiSigConfig.findUnique({
         where: { groupId },
-      });
+      })
 
       if (existing) {
-        throw new Error(`Multi-sig already configured for group: ${groupId}`);
+        throw new Error(`Multi-sig already configured for group: ${groupId}`)
       }
 
       // Create multi-sig config
@@ -48,7 +48,7 @@ export class MultiSigService {
           threshold,
           totalSigners: signers.length,
         },
-      });
+      })
 
       // Add signers
       await tx.signerConfig.createMany({
@@ -57,34 +57,34 @@ export class MultiSigService {
           walletAddress: signer.walletAddress,
           weight: signer.weight,
         })),
-      });
+      })
 
       logger.info('Multi-sig config created', {
         groupId,
         threshold,
         totalSigners: signers.length,
-      });
+      })
 
       return {
         id: config.id,
         groupId: config.groupId,
         threshold: config.threshold,
         totalSigners: config.totalSigners,
-      };
-    });
+      }
+    })
   }
 
   async getMultiSigConfig(groupId: string): Promise<{
-    id: string;
-    groupId: string;
-    threshold: number;
-    totalSigners: number;
+    id: string
+    groupId: string
+    threshold: number
+    totalSigners: number
     signers: Array<{
-      id: string;
-      walletAddress: string;
-      weight: number;
-      isActive: boolean;
-    }>;
+      id: string
+      walletAddress: string
+      weight: number
+      isActive: boolean
+    }>
   } | null> {
     const config = await prisma.multiSigConfig.findUnique({
       where: { groupId },
@@ -99,9 +99,9 @@ export class MultiSigService {
           },
         },
       },
-    });
+    })
 
-    if (!config) return null;
+    if (!config) return null
 
     return {
       id: config.id,
@@ -109,7 +109,7 @@ export class MultiSigService {
       threshold: config.threshold,
       totalSigners: config.totalSigners,
       signers: config.signers,
-    };
+    }
   }
 
   async createProposal(
@@ -120,23 +120,23 @@ export class MultiSigService {
     metadata?: ProposalMetadata,
     expiresIn: number = 86400
   ): Promise<{
-    id: string;
-    status: ProposalStatus;
-    requiredSigs: number;
-    expiresAt: Date;
+    id: string
+    status: ProposalStatus
+    requiredSigs: number
+    expiresAt: Date
   }> {
-    const config = await this.getMultiSigConfig(groupId);
+    const config = await this.getMultiSigConfig(groupId)
     if (!config) {
-      throw new MultiSigNotFoundError(groupId);
+      throw new MultiSigNotFoundError(groupId)
     }
 
     // Verify proposer is a signer
-    const isSigner = config.signers.some((s) => s.walletAddress === proposerId);
+    const isSigner = config.signers.some((s) => s.walletAddress === proposerId)
     if (!isSigner) {
-      throw new UnauthorizedSignerError(proposerId);
+      throw new UnauthorizedSignerError(proposerId)
     }
 
-    const expiresAt = new Date(Date.now() + expiresIn * 1000);
+    const expiresAt = new Date(Date.now() + expiresIn * 1000)
 
     const proposal = await prisma.transactionProposal.create({
       data: {
@@ -148,21 +148,21 @@ export class MultiSigService {
         requiredSigs: config.threshold,
         expiresAt,
       },
-    });
+    })
 
     logger.info('Proposal created', {
       proposalId: proposal.id,
       groupId,
       operationType,
       requiredSigs: config.threshold,
-    });
+    })
 
     return {
       id: proposal.id,
       status: proposal.status as ProposalStatus,
       requiredSigs: proposal.requiredSigs,
       expiresAt: proposal.expiresAt,
-    };
+    }
   }
 
   async signProposal(
@@ -170,11 +170,11 @@ export class MultiSigService {
     signerWalletAddress: string,
     signature: string
   ): Promise<{
-    proposalId: string;
-    currentSigs: number;
-    requiredSigs: number;
-    status: ProposalStatus;
-    readyToExecute: boolean;
+    proposalId: string
+    currentSigs: number
+    requiredSigs: number
+    status: ProposalStatus
+    readyToExecute: boolean
   }> {
     return await prisma.$transaction(async (tx) => {
       const proposal = await tx.transactionProposal.findUnique({
@@ -189,10 +189,10 @@ export class MultiSigService {
           },
           signatures: true,
         },
-      });
+      })
 
       if (!proposal) {
-        throw new ProposalNotFoundError(proposalId);
+        throw new ProposalNotFoundError(proposalId)
       }
 
       // Check if expired
@@ -200,35 +200,33 @@ export class MultiSigService {
         await tx.transactionProposal.update({
           where: { id: proposalId },
           data: { status: ProposalStatus.EXPIRED },
-        });
-        throw new ProposalExpiredError(proposalId);
+        })
+        throw new ProposalExpiredError(proposalId)
       }
 
       // Check if already executed
       if (proposal.status === ProposalStatus.EXECUTED) {
-        throw new ProposalAlreadyExecutedError(proposalId);
+        throw new ProposalAlreadyExecutedError(proposalId)
       }
 
       // Find signer config
       const signerConfig = proposal.multiSig.signers.find(
         (s) => s.walletAddress === signerWalletAddress
-      );
+      )
 
       if (!signerConfig) {
-        throw new UnauthorizedSignerError(signerWalletAddress);
+        throw new UnauthorizedSignerError(signerWalletAddress)
       }
 
       // Check for duplicate signature
-      const existingSignature = proposal.signatures.find(
-        (s) => s.signerId === signerConfig.id
-      );
+      const existingSignature = proposal.signatures.find((s) => s.signerId === signerConfig.id)
 
       if (existingSignature) {
-        throw new DuplicateSignatureError(signerConfig.id);
+        throw new DuplicateSignatureError(signerConfig.id)
       }
 
       // Verify signature
-      await this.verifySignature(proposal.transactionXdr, signerWalletAddress, signature);
+      await this.verifySignature(proposal.transactionXdr, signerWalletAddress, signature)
 
       // Add signature
       await tx.proposalSignature.create({
@@ -237,11 +235,11 @@ export class MultiSigService {
           signerId: signerConfig.id,
           signature,
         },
-      });
+      })
 
       // Update proposal
-      const newSigCount = proposal.currentSigs + 1;
-      const readyToExecute = newSigCount >= proposal.requiredSigs;
+      const newSigCount = proposal.currentSigs + 1
+      const readyToExecute = newSigCount >= proposal.requiredSigs
 
       const updatedProposal = await tx.transactionProposal.update({
         where: { id: proposalId },
@@ -249,7 +247,7 @@ export class MultiSigService {
           currentSigs: newSigCount,
           status: readyToExecute ? ProposalStatus.APPROVED : ProposalStatus.PENDING,
         },
-      });
+      })
 
       logger.info('Proposal signed', {
         proposalId,
@@ -257,7 +255,7 @@ export class MultiSigService {
         currentSigs: newSigCount,
         requiredSigs: proposal.requiredSigs,
         readyToExecute,
-      });
+      })
 
       return {
         proposalId,
@@ -265,14 +263,14 @@ export class MultiSigService {
         requiredSigs: proposal.requiredSigs,
         status: updatedProposal.status as ProposalStatus,
         readyToExecute,
-      };
-    });
+      }
+    })
   }
 
   async executeProposal(proposalId: string): Promise<{
-    proposalId: string;
-    txHash: string;
-    status: ProposalStatus;
+    proposalId: string
+    txHash: string
+    status: ProposalStatus
   }> {
     return await prisma.$transaction(async (tx) => {
       const proposal = await tx.transactionProposal.findUnique({
@@ -284,29 +282,29 @@ export class MultiSigService {
             },
           },
         },
-      });
+      })
 
       if (!proposal) {
-        throw new ProposalNotFoundError(proposalId);
+        throw new ProposalNotFoundError(proposalId)
       }
 
       if (proposal.status === ProposalStatus.EXECUTED) {
-        throw new ProposalAlreadyExecutedError(proposalId);
+        throw new ProposalAlreadyExecutedError(proposalId)
       }
 
       if (new Date() > proposal.expiresAt) {
-        throw new ProposalExpiredError(proposalId);
+        throw new ProposalExpiredError(proposalId)
       }
 
       if (proposal.currentSigs < proposal.requiredSigs) {
-        throw new InsufficientSignaturesError(proposal.currentSigs, proposal.requiredSigs);
+        throw new InsufficientSignaturesError(proposal.currentSigs, proposal.requiredSigs)
       }
 
       // Build and submit transaction
       const txHash = await this.submitTransaction(
         proposal.transactionXdr,
         proposal.signatures.map((s) => s.signature)
-      );
+      )
 
       // Update proposal
       await tx.transactionProposal.update({
@@ -316,36 +314,36 @@ export class MultiSigService {
           executedAt: new Date(),
           executedTxHash: txHash,
         },
-      });
+      })
 
       logger.info('Proposal executed', {
         proposalId,
         txHash,
-      });
+      })
 
       return {
         proposalId,
         txHash,
         status: ProposalStatus.EXECUTED,
-      };
-    });
+      }
+    })
   }
 
   async getProposal(proposalId: string): Promise<{
-    id: string;
-    groupId: string;
-    proposerId: string;
-    operationType: string;
-    status: string;
-    currentSigs: number;
-    requiredSigs: number;
-    expiresAt: Date;
-    createdAt: Date;
-    metadata?: ProposalMetadata;
+    id: string
+    groupId: string
+    proposerId: string
+    operationType: string
+    status: string
+    currentSigs: number
+    requiredSigs: number
+    expiresAt: Date
+    createdAt: Date
+    metadata?: ProposalMetadata
     signatures: Array<{
-      walletAddress: string;
-      signedAt: Date;
-    }>;
+      walletAddress: string
+      signedAt: Date
+    }>
   }> {
     const proposal = await prisma.transactionProposal.findUnique({
       where: { id: proposalId },
@@ -368,10 +366,10 @@ export class MultiSigService {
           },
         },
       },
-    });
+    })
 
     if (!proposal) {
-      throw new ProposalNotFoundError(proposalId);
+      throw new ProposalNotFoundError(proposalId)
     }
 
     return {
@@ -389,7 +387,7 @@ export class MultiSigService {
         walletAddress: s.signer.walletAddress,
         signedAt: s.signedAt,
       })),
-    };
+    }
   }
 
   async getGroupProposals(
@@ -397,21 +395,23 @@ export class MultiSigService {
     status?: ProposalStatus,
     limit: number = 50,
     offset: number = 0
-  ): Promise<Array<{
-    id: string;
-    operationType: string;
-    status: string;
-    currentSigs: number;
-    requiredSigs: number;
-    expiresAt: Date;
-    createdAt: Date;
-  }>> {
+  ): Promise<
+    Array<{
+      id: string
+      operationType: string
+      status: string
+      currentSigs: number
+      requiredSigs: number
+      expiresAt: Date
+      createdAt: Date
+    }>
+  > {
     const config = await prisma.multiSigConfig.findUnique({
       where: { groupId },
-    });
+    })
 
     if (!config) {
-      return [];
+      return []
     }
 
     const proposals = await prisma.transactionProposal.findMany({
@@ -433,9 +433,9 @@ export class MultiSigService {
       },
       take: limit,
       skip: offset,
-    });
+    })
 
-    return proposals;
+    return proposals
   }
 
   private async verifySignature(
@@ -447,50 +447,49 @@ export class MultiSigService {
       const transaction = StellarSdk.TransactionBuilder.fromXDR(
         transactionXdr,
         StellarSdk.Networks.TESTNET
-      );
+      )
 
       // Verify signature matches transaction hash and signer
-      const txHash = transaction.hash();
-      const keypair = StellarSdk.Keypair.fromPublicKey(signerAddress);
-      
-      const isValid = keypair.verify(txHash, Buffer.from(signature, 'base64'));
-      
+      const txHash = transaction.hash()
+      const keypair = StellarSdk.Keypair.fromPublicKey(signerAddress)
+
+      const isValid = keypair.verify(txHash, Buffer.from(signature, 'base64'))
+
       if (!isValid) {
-        throw new Error('Invalid signature');
+        throw new Error('Invalid signature')
       }
     } catch (error) {
-      logger.error('Signature verification failed', { error, signerAddress });
-      throw new Error('Invalid signature');
+      logger.error('Signature verification failed', { error, signerAddress })
+      throw new Error('Invalid signature')
     }
   }
 
-  private async submitTransaction(
-    transactionXdr: string,
-    signatures: string[]
-  ): Promise<string> {
+  private async submitTransaction(transactionXdr: string, signatures: string[]): Promise<string> {
     try {
       const transaction = StellarSdk.TransactionBuilder.fromXDR(
         transactionXdr,
         StellarSdk.Networks.TESTNET
-      );
+      )
 
       // Add all signatures
       signatures.forEach((sig) => {
-        const hint = Buffer.alloc(4);
-        const signature = Buffer.from(sig, 'base64');
-        transaction.signatures.push(
-          new StellarSdk.xdr.DecoratedSignature({ hint, signature })
-        );
-      });
+        const hint = Buffer.alloc(4)
+        const signature = Buffer.from(sig, 'base64')
+        transaction.signatures.push(new StellarSdk.xdr.DecoratedSignature({ hint, signature }))
+      })
 
       // Submit to network
-      const server = new StellarSdk.Server(process.env.SOROBAN_RPC_URL || '');
-      const result = await server.submitTransaction(transaction);
+      const server: any = new (StellarSdk as any).SorobanRpc.Server(
+        process.env.SOROBAN_RPC_URL || ''
+      )
+      const result = server.sendTransaction
+        ? await server.sendTransaction(transaction)
+        : await server.submitTransaction(transaction)
 
-      return result.hash;
+      return result.hash || result?.result?.hash || ''
     } catch (error) {
-      logger.error('Transaction submission failed', { error });
-      throw new Error('Failed to submit transaction');
+      logger.error('Transaction submission failed', { error })
+      throw new Error('Failed to submit transaction')
     }
   }
 
@@ -505,11 +504,11 @@ export class MultiSigService {
       data: {
         status: ProposalStatus.EXPIRED,
       },
-    });
+    })
 
-    logger.info('Expired old proposals', { count: result.count });
-    return result.count;
+    logger.info('Expired old proposals', { count: result.count })
+    return result.count
   }
 }
 
-export const multiSigService = new MultiSigService();
+export const multiSigService = new MultiSigService()

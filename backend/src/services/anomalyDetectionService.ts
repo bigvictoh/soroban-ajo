@@ -2,6 +2,7 @@ import { PrismaClient } from '@prisma/client'
 import { logger } from '../utils/logger'
 
 const prisma = new PrismaClient()
+const prismaAny = prisma as any
 
 export interface AnomalyConfig {
   metric: string
@@ -108,7 +109,7 @@ export class AnomalyDetectionService {
 
   private async analyzeMetric(metric: string, config: AnomalyConfig): Promise<AnomalyAlert[]> {
     const data = await this.getMetricData(metric, config.windowSize)
-    
+
     if (data.length < config.minDataPoints) {
       return []
     }
@@ -123,7 +124,7 @@ export class AnomalyDetectionService {
 
     // Detect anomaly
     const deviation = Math.abs(latestData.value - stats.mean) / stats.standardDeviation
-    
+
     if (deviation > config.threshold) {
       const alert = this.createAlert(metric, latestData, stats, deviation, config)
       alerts.push(alert)
@@ -236,13 +237,9 @@ export class AnomalyDetectionService {
   private async getResponseTimeData(startTime: Date): Promise<MetricData[]> {
     // This would typically come from application performance monitoring
     // For now, we'll simulate with analytics events
-    const events = await prisma.analyticsEvent.findMany({
+    const events = await prismaAny.analyticsEvent.findMany({
       where: {
         timestamp: { gte: startTime },
-        eventData: {
-          path: ['responseTime'],
-          exists: true,
-        },
       },
       select: {
         timestamp: true,
@@ -282,10 +279,12 @@ export class AnomalyDetectionService {
   ): MetricData[] {
     const grouped = new Map<number, number>()
 
-    data.forEach(item => {
+    data.forEach((item) => {
       const timestamp = new Date(item[timestampField])
-      const intervalStart = Math.floor(timestamp.getTime() / (intervalMinutes * 60 * 1000)) * (intervalMinutes * 60 * 1000)
-      
+      const intervalStart =
+        Math.floor(timestamp.getTime() / (intervalMinutes * 60 * 1000)) *
+        (intervalMinutes * 60 * 1000)
+
       const value = valueField ? this.getNestedValue(item, valueField) : 1
       grouped.set(intervalStart, (grouped.get(intervalStart) || 0) + value)
     })
@@ -302,13 +301,17 @@ export class AnomalyDetectionService {
     return path.split('.').reduce((current, key) => current?.[key], obj) || 0
   }
 
-  private calculateStatistics(data: MetricData[]): { mean: number; standardDeviation: number; median: number } {
-    const values = data.map(d => d.value)
+  private calculateStatistics(data: MetricData[]): {
+    mean: number
+    standardDeviation: number
+    median: number
+  } {
+    const values = data.map((d) => d.value)
     const mean = values.reduce((sum, val) => sum + val, 0) / values.length
-    
+
     const variance = values.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / values.length
     const standardDeviation = Math.sqrt(variance)
-    
+
     const sorted = [...values].sort((a, b) => a - b)
     const median = sorted[Math.floor(sorted.length / 2)]
 
@@ -317,10 +320,14 @@ export class AnomalyDetectionService {
 
   private getThresholdMultiplier(sensitivity: string): number {
     switch (sensitivity) {
-      case 'low': return 0.8
-      case 'medium': return 1.0
-      case 'high': return 1.2
-      default: return 1.0
+      case 'low':
+        return 0.8
+      case 'medium':
+        return 1.0
+      case 'high':
+        return 1.2
+      default:
+        return 1.0
     }
   }
 
@@ -333,7 +340,7 @@ export class AnomalyDetectionService {
   ): AnomalyAlert {
     const severity = this.calculateSeverity(deviation, config.sensitivity)
     const direction = latestData.value > stats.mean ? 'increase' : 'decrease'
-    
+
     return {
       id: `${metric}-${Date.now()}`,
       metric,
@@ -342,20 +349,26 @@ export class AnomalyDetectionService {
       deviation,
       severity,
       timestamp: latestData.timestamp,
-      description: `Unusual ${direction} in ${metric}: ${latestData.value.toFixed(2)} (expected: ${stats.mean.toFixed(2)})`,
+      description: `Unusual ${direction} in ${metric}: ${latestData.value.toFixed(
+        2
+      )} (expected: ${stats.mean.toFixed(2)})`,
       recommendations: this.getRecommendations(metric, direction, severity),
     }
   }
 
-  private detectTrendAnomaly(metric: string, data: MetricData[], config: AnomalyConfig): AnomalyAlert | null {
+  private detectTrendAnomaly(
+    metric: string,
+    data: MetricData[],
+    config: AnomalyConfig
+  ): AnomalyAlert | null {
     if (data.length < 10) return null
 
     // Calculate trend using linear regression
     const trend = this.calculateTrend(data)
-    
+
     // Check if trend is statistically significant
     const trendThreshold = this.getTrendThreshold(config.sensitivity)
-    
+
     if (Math.abs(trend.slope) > trendThreshold) {
       const direction = trend.slope > 0 ? 'increasing' : 'decreasing'
       const severity = this.calculateTrendSeverity(Math.abs(trend.slope), config.sensitivity)
@@ -379,7 +392,7 @@ export class AnomalyDetectionService {
   private calculateTrend(data: MetricData[]): { slope: number; correlation: number } {
     const n = data.length
     const x = data.map((_, i) => i)
-    const y = data.map(d => d.value)
+    const y = data.map((d) => d.value)
 
     const sumX = x.reduce((sum, val) => sum + val, 0)
     const sumY = y.reduce((sum, val) => sum + val, 0)
@@ -387,7 +400,7 @@ export class AnomalyDetectionService {
     const sumXX = x.reduce((sum, val) => sum + val * val, 0)
 
     const slope = (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX)
-    
+
     // Calculate correlation coefficient
     const meanX = sumX / n
     const meanY = sumY / n
@@ -401,14 +414,21 @@ export class AnomalyDetectionService {
 
   private getTrendThreshold(sensitivity: string): number {
     switch (sensitivity) {
-      case 'low': return 0.5
-      case 'medium': return 0.3
-      case 'high': return 0.1
-      default: return 0.3
+      case 'low':
+        return 0.5
+      case 'medium':
+        return 0.3
+      case 'high':
+        return 0.1
+      default:
+        return 0.3
     }
   }
 
-  private calculateSeverity(deviation: number, sensitivity: string): 'low' | 'medium' | 'high' | 'critical' {
+  private calculateSeverity(
+    deviation: number,
+    sensitivity: string
+  ): 'low' | 'medium' | 'high' | 'critical' {
     const multiplier = this.getThresholdMultiplier(sensitivity)
     const adjustedDeviation = deviation / multiplier
 
@@ -418,7 +438,10 @@ export class AnomalyDetectionService {
     return 'low'
   }
 
-  private calculateTrendSeverity(slope: number, sensitivity: string): 'low' | 'medium' | 'high' | 'critical' {
+  private calculateTrendSeverity(
+    slope: number,
+    sensitivity: string
+  ): 'low' | 'medium' | 'high' | 'critical' {
     const threshold = this.getTrendThreshold(sensitivity)
     const ratio = Math.abs(slope) / threshold
 
@@ -498,10 +521,10 @@ export class AnomalyDetectionService {
   }
 
   private async storeAnomaly(alert: AnomalyAlert) {
-    await prisma.analyticsEvent.create({
+    await prismaAny.analyticsEvent.create({
       data: {
         eventType: 'anomaly_detected',
-        eventData: alert,
+        eventData: alert as any,
         timestamp: alert.timestamp,
       },
     })
@@ -512,7 +535,7 @@ export class AnomalyDetectionService {
   async getRecentAnomalies(hours: number = 24): Promise<AnomalyAlert[]> {
     const startTime = new Date(Date.now() - hours * 60 * 60 * 1000)
 
-    const events = await prisma.analyticsEvent.findMany({
+    const events = await prismaAny.analyticsEvent.findMany({
       where: {
         eventType: 'anomaly_detected',
         timestamp: { gte: startTime },
@@ -524,7 +547,7 @@ export class AnomalyDetectionService {
       orderBy: { timestamp: 'desc' },
     })
 
-    return events.map(event => event.eventData as AnomalyAlert)
+    return events.map((event: any) => event.eventData as unknown as AnomalyAlert)
   }
 
   async getAnomalySummary(): Promise<{

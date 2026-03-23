@@ -1,5 +1,8 @@
 import { Request, Response, NextFunction } from 'express'
 import { cacheGet, cacheSet } from '../services/cacheService'
+import { createModuleLogger } from '../utils/logger'
+
+const logger = createModuleLogger('CacheMiddleware')
 
 /**
  * Simple caching middleware using Redis.
@@ -23,7 +26,7 @@ export const cacheMiddleware = async (req: Request, res: Response, next: NextFun
     }
   } catch (err) {
     // log but don't break the request
-    console.error('Cache lookup error', err)
+    logger.warn('Cache lookup failed', { error: err, key })
   }
 
   // monkeypatch res.json to capture the body for caching
@@ -33,7 +36,7 @@ export const cacheMiddleware = async (req: Request, res: Response, next: NextFun
       cacheSet(key, JSON.stringify(body), 60 * 5) // default 5 min
       res.setHeader('X-Cache', 'MISS')
     } catch (err) {
-      console.error('Cache set error', err)
+      logger.warn('Cache set failed', { error: err, key })
     }
     return originalJson(body)
   }

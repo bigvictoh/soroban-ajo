@@ -18,19 +18,19 @@ export async function processAnalyticsETL(job: Job<AnalyticsETLData>): Promise<v
   try {
     switch (job.data.type) {
       case 'hourly_etl':
-        await processHourlyETL(job.id)
+        await processHourlyETL(String(job.id))
         break
 
       case 'daily_etl':
-        await processDailyETL(job.id)
+        await processDailyETL(String(job.id))
         break
 
       case 'cohort_analysis':
-        await processCohortAnalysis(job.id)
+        await processCohortAnalysis(String(job.id))
         break
 
       case 'metrics_update':
-        await processMetricsUpdate(job.id)
+        await processMetricsUpdate(String(job.id))
         break
 
       default:
@@ -60,8 +60,8 @@ async function processHourlyETL(jobId: string): Promise<void> {
   })
 
   // Group events by user and update user metrics
-  const userEvents = recentEvents.filter(e => e.userId)
-  const uniqueUsers = [...new Set(userEvents.map(e => e.userId).filter(Boolean))]
+  const userEvents = recentEvents.filter((e) => e.userId)
+  const uniqueUsers = [...new Set(userEvents.map((e) => e.userId).filter(Boolean))]
 
   for (const userId of uniqueUsers) {
     if (userId) {
@@ -70,8 +70,8 @@ async function processHourlyETL(jobId: string): Promise<void> {
   }
 
   // Group events by group and update group metrics
-  const groupEvents = recentEvents.filter(e => e.groupId)
-  const uniqueGroups = [...new Set(groupEvents.map(e => e.groupId).filter(Boolean))]
+  const groupEvents = recentEvents.filter((e) => e.groupId)
+  const uniqueGroups = [...new Set(groupEvents.map((e) => e.groupId).filter(Boolean))]
 
   for (const groupId of uniqueGroups) {
     if (groupId) {
@@ -115,7 +115,7 @@ async function processDailyETL(jobId: string): Promise<void> {
     data: [
       {
         eventType: 'daily_metrics',
-        eventData: dailyMetrics,
+        eventData: dailyMetrics as any,
         timestamp: new Date(),
       },
     ],
@@ -156,12 +156,12 @@ async function processCohortAnalysis(jobId: string): Promise<void> {
 
   // Group users by week of signup
   const cohorts = new Map<string, string[]>()
-  
-  users.forEach(user => {
+
+  users.forEach((user) => {
     const cohortDate = new Date(user.createdAt)
     cohortDate.setHours(0, 0, 0, 0)
     cohortDate.setDate(cohortDate.getDate() - cohortDate.getDay()) // Start of week
-    
+
     const cohortKey = cohortDate.toISOString().split('T')[0]
     if (!cohorts.has(cohortKey)) {
       cohorts.set(cohortKey, [])
@@ -172,10 +172,10 @@ async function processCohortAnalysis(jobId: string): Promise<void> {
   // Calculate retention for each cohort
   for (const [cohortDateStr, cohortUsers] of cohorts) {
     const cohortDate = new Date(cohortDateStr)
-    
+
     for (let period = 0; period <= 12; period++) {
       const periodDate = new Date(cohortDate)
-      periodDate.setDate(periodDate.getDate() + (period * 7)) // Weekly periods
+      periodDate.setDate(periodDate.getDate() + period * 7) // Weekly periods
 
       const activeUsers = await prisma.user.count({
         where: {
@@ -227,7 +227,7 @@ async function processMetricsUpdate(jobId: string): Promise<void> {
   await prisma.analyticsEvent.create({
     data: {
       eventType: 'predictive_metrics',
-      eventData: predictiveMetrics,
+      eventData: predictiveMetrics as any,
       timestamp: new Date(),
     },
   })
@@ -260,7 +260,7 @@ async function processMetricsUpdate(jobId: string): Promise<void> {
   await prisma.analyticsEvent.create({
     data: {
       eventType: 'funnel_analysis',
-      eventData: funnelAnalysis,
+      eventData: funnelAnalysis as any,
       timestamp: new Date(),
     },
   })

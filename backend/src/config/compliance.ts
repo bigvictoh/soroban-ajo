@@ -1,4 +1,7 @@
 import { z } from 'zod'
+import { createModuleLogger } from '../utils/logger'
+
+const logger = createModuleLogger('ComplianceConfig')
 
 // Compliance related configuration schema
 const complianceSchema = z.object({
@@ -22,9 +25,12 @@ function loadComplianceConfig(): ComplianceConfig {
     return complianceSchema.parse(process.env)
   } catch (error) {
     if (error instanceof z.ZodError) {
-      console.error('❌ Invalid compliance configuration:')
+      logger.error('Invalid compliance configuration')
       error.errors.forEach((err) => {
-        console.error(`  - ${err.path.join('.')}: ${err.message}`)
+        logger.error('Compliance configuration issue', {
+          path: err.path.join('.'),
+          message: err.message,
+        })
       })
       process.exit(1)
     }
@@ -43,7 +49,9 @@ export const complianceConfig = {
     3: config.TX_LIMIT_LEVEL_3,
   } as Record<number, number>,
   amlBlacklist: config.AML_BLACKLISTED_ADDRESSES
-    ? config.AML_BLACKLISTED_ADDRESSES.split(',').map((a) => a.trim()).filter(Boolean)
+    ? config.AML_BLACKLISTED_ADDRESSES.split(',')
+        .map((a) => a.trim())
+        .filter(Boolean)
     : [],
 } as const
 

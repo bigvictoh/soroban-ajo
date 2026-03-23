@@ -3,6 +3,7 @@ import { PrismaClient } from '@prisma/client'
 import { complianceConfig } from '../config/compliance'
 
 const prisma = new PrismaClient()
+const prismaAny = prisma as any
 
 export interface AuthRequestWithKyc extends Request {
   user?: { publicKey: string }
@@ -19,8 +20,9 @@ export function requireKycLevel(minLevel: number) {
       return
     }
 
-    const user = await prisma.user.findUnique({ where: { walletAddress: pub } })
-    if (!user || user.kycLevel < minLevel) {
+    const user = await prismaAny.user.findUnique({ where: { walletAddress: pub } })
+    const level = user?.kycLevel || 0
+    if (!user || level < minLevel) {
       res.status(403).json({ error: 'Insufficient KYC level' })
       return
     }
@@ -41,17 +43,19 @@ export function enforceTransactionLimit(amountField: string = 'amount') {
       return
     }
 
-    const user = await prisma.user.findUnique({ where: { walletAddress: pub } })
+    const user = await prismaAny.user.findUnique({ where: { walletAddress: pub } })
     if (!user) {
       res.status(404).json({ error: 'User not found' })
       return
     }
 
-    const limit = complianceConfig.transactionLimits[user.kycLevel] || 0
+    const limit = complianceConfig.transactionLimits[user.kycLevel || 0] || 0
     const amt = Number(req.body[amountField] ?? req.query[amountField])
 
     if (isNaN(amt) || amt > limit) {
-      res.status(403).json({ error: 'Transaction exceeds allowed limit for your verification level' })
+      res
+        .status(403)
+        .json({ error: 'Transaction exceeds allowed limit for your verification level' })
       return
     }
 

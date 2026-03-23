@@ -3,6 +3,7 @@ import { auditLog } from './auditService'
 import { complianceConfig } from '../config/compliance'
 
 const prisma = new PrismaClient()
+const prismaAny = prisma as any
 
 export interface KycStatus {
   level: number
@@ -18,23 +19,13 @@ export class KycService {
    * Retrieve a user's current KYC status/level.
    */
   static async getStatus(walletAddress: string): Promise<KycStatus | null> {
-    const user = await prisma.user.findUnique({
-      where: { walletAddress },
-      select: {
-        kycLevel: true,
-        kycStatus: true,
-        kycRequestedAt: true,
-        kycVerifiedAt: true,
-        kycRejectedAt: true,
-        kycDocuments: true,
-      },
-    })
+    const user = await prismaAny.user.findUnique({ where: { walletAddress } })
 
     if (!user) return null
 
     return {
-      level: user.kycLevel,
-      status: user.kycStatus,
+      level: user.kycLevel || 0,
+      status: user.kycStatus || 'none',
       requestedAt: user.kycRequestedAt || undefined,
       verifiedAt: user.kycVerifiedAt || undefined,
       rejectedAt: user.kycRejectedAt || undefined,
@@ -46,7 +37,7 @@ export class KycService {
    * Request KYC for a user (sets status to pending).
    */
   static async requestVerification(walletAddress: string): Promise<void> {
-    await prisma.user.update({
+    await prismaAny.user.update({
       where: { walletAddress },
       data: {
         kycStatus: 'pending',
@@ -59,10 +50,10 @@ export class KycService {
    * Upload a supporting document for a user. docData is typically a base64 string or IPFS CID.
    */
   static async uploadDocument(walletAddress: string, docType: string, docData: string) {
-    const user = await prisma.user.findUnique({ where: { walletAddress } })
+    const user = await prismaAny.user.findUnique({ where: { walletAddress } })
     if (!user) throw new Error('User not found')
 
-    return prisma.kycDocument.create({
+    return prismaAny.kycDocument.create({
       data: {
         userId: user.id,
         docType,
@@ -92,7 +83,7 @@ export class KycService {
       data.kycRejectedAt = new Date()
     }
 
-    const user = await prisma.user.update({
+    const user = await prismaAny.user.update({
       where: { walletAddress: params.walletAddress },
       data,
     })

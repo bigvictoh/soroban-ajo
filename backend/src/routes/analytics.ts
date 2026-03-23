@@ -1,4 +1,4 @@
-import { Router, Response } from 'express'
+import { Router, Request, Response } from 'express'
 import { z } from 'zod'
 import { PrismaClient } from '@prisma/client'
 import { analyticsService } from '../services/analyticsService'
@@ -29,7 +29,7 @@ const dateRangeSchema = z.object({
 router.post('/', async (req: AuthRequest, res: Response) => {
   try {
     const validatedData = eventSchema.parse(req.body)
-    
+
     await analyticsService.saveEvent(validatedData.type, validatedData)
     await biService.trackEvent(
       validatedData.type,
@@ -37,7 +37,7 @@ router.post('/', async (req: AuthRequest, res: Response) => {
       validatedData.groupId,
       validatedData.eventData
     )
-    
+
     return res.status(201).json({ success: true })
   } catch (error) {
     if (error instanceof z.ZodError) {
@@ -52,14 +52,17 @@ router.post('/', async (req: AuthRequest, res: Response) => {
 router.get('/stats', async (req: AuthRequest, res: Response) => {
   try {
     const dateRange = dateRangeSchema.parse(req.query)
-    const dateFilter = dateRange.start && dateRange.end ? {
-      start: new Date(dateRange.start),
-      end: new Date(dateRange.end),
-    } : undefined
+    const dateFilter =
+      dateRange.start && dateRange.end
+        ? {
+            start: new Date(dateRange.start),
+            end: new Date(dateRange.end),
+          }
+        : undefined
 
     const stats = await analyticsService.getStats()
     const advancedMetrics = await biService.calculateAdvancedMetrics(dateFilter)
-    
+
     return res.json({
       ...stats,
       advancedMetrics,
@@ -84,10 +87,13 @@ router.get('/metrics', async (_req: Request, res: Response) => {
 router.get('/advanced', async (req: AuthRequest, res: Response) => {
   try {
     const dateRange = dateRangeSchema.parse(req.query)
-    const dateFilter = dateRange.start && dateRange.end ? {
-      start: new Date(dateRange.start),
-      end: new Date(dateRange.end),
-    } : undefined
+    const dateFilter =
+      dateRange.start && dateRange.end
+        ? {
+            start: new Date(dateRange.start),
+            end: new Date(dateRange.end),
+          }
+        : undefined
 
     const metrics = await biService.calculateAdvancedMetrics(dateFilter)
     return res.json(metrics)
@@ -138,13 +144,13 @@ router.get('/cohort', async (req: AuthRequest, res: Response) => {
 router.post('/track', async (req: AuthRequest, res: Response) => {
   try {
     const { eventType, userId, groupId, eventData } = req.body
-    
+
     if (!eventType) {
       return res.status(400).json({ error: 'eventType is required' })
     }
 
     await biService.trackEvent(eventType, userId, groupId, eventData)
-    
+
     return res.status(201).json({ success: true })
   } catch (error) {
     logger.error('[Analytics Route] Track event error:', error)
@@ -157,7 +163,7 @@ router.get('/users/:userId/metrics', async (req: AuthRequest, res: Response) => 
   try {
     const { userId } = req.params
     await biService.updateUserMetrics(userId)
-    
+
     const userMetrics = await prisma.userMetrics.findUnique({
       where: { userId },
       include: {
@@ -169,11 +175,11 @@ router.get('/users/:userId/metrics', async (req: AuthRequest, res: Response) => 
         },
       },
     })
-    
+
     if (!userMetrics) {
       return res.status(404).json({ error: 'User metrics not found' })
     }
-    
+
     return res.json(userMetrics)
   } catch (error) {
     logger.error('[Analytics Route] User metrics error:', error)
@@ -186,7 +192,7 @@ router.get('/groups/:groupId/metrics', async (req: AuthRequest, res: Response) =
   try {
     const { groupId } = req.params
     await biService.updateGroupMetrics(groupId)
-    
+
     const groupMetrics = await prisma.groupMetrics.findUnique({
       where: { groupId },
       include: {
@@ -200,11 +206,11 @@ router.get('/groups/:groupId/metrics', async (req: AuthRequest, res: Response) =
         },
       },
     })
-    
+
     if (!groupMetrics) {
       return res.status(404).json({ error: 'Group metrics not found' })
     }
-    
+
     return res.json(groupMetrics)
   } catch (error) {
     logger.error('[Analytics Route] Group metrics error:', error)
@@ -222,10 +228,12 @@ router.post('/export', async (req: AuthRequest, res: Response) => {
 
     const exportRequest = {
       format,
-      dateRange: dateRange ? {
-        start: new Date(dateRange.start),
-        end: new Date(dateRange.end),
-      } : undefined,
+      dateRange: dateRange
+        ? {
+            start: new Date(dateRange.start),
+            end: new Date(dateRange.end),
+          }
+        : undefined,
       includeMetrics: includeMetrics || false,
       includePredictions: includePredictions || false,
       includeFunnel: includeFunnel || false,
@@ -243,7 +251,7 @@ router.get('/export/:exportId/status', async (req: Request, res: Response) => {
   try {
     const { exportId } = req.params
     const status = await dataExportService.getExportStatus(exportId)
-    
+
     if (!status) {
       return res.status(404).json({ error: 'Export not found' })
     }
@@ -259,7 +267,7 @@ router.get('/export/:exportId/download', async (req: Request, res: Response) => 
   try {
     const { exportId } = req.params
     const exportRecord = await dataExportService.getExportStatus(exportId)
-    
+
     if (!exportRecord) {
       return res.status(404).json({ error: 'Export not found' })
     }

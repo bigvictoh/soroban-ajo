@@ -1,31 +1,102 @@
+import path from 'path'
 import winston from 'winston'
+import DailyRotateFile from 'winston-daily-rotate-file'
+import { ensureLogDirectory, initializeMonitoring, loggerConfig } from '../config/logger.config'
+import { sanitizeLogData } from './logHelpers'
 
-const { combine, timestamp, json, colorize, printf } = winston.format
+ensureLogDirectory()
+initializeMonitoring()
 
-const devFormat = combine(
-  colorize(),
+const { combine, timestamp, errors, splat, json, colorize, printf } = winston.format
+
+const sanitizeFormat = winston.format((info) => {
+  return sanitizeLogData(info) as winston.Logform.TransformableInfo
+})
+
+const logFormat = combine(
+  timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
+  errors({ stack: true }),
+  splat(),
+  sanitizeFormat(),
+  json()
+)
+
+const consoleFormat = combine(
+  colorize({ all: true }),
   timestamp({ format: 'HH:mm:ss' }),
-  printf(({ level, message, timestamp, ...meta }) => {
-    const metaStr = Object.keys(meta).length ? ' ' + JSON.stringify(meta) : ''
-    return `${timestamp} [${level}] ${message}${metaStr}`
+  errors({ stack: true }),
+  splat(),
+  sanitizeFormat(),
+  printf(({ timestamp: logTimestamp, level, message, ...meta }) => {
+    const metaString = Object.keys(meta).length ? ` ${JSON.stringify(meta)}` : ''
+    return `${logTimestamp} [${level}]: ${message}${metaString}`
   })
 )
 
-const prodFormat = combine(timestamp(), json())
+const appFileTransport = new DailyRotateFile({
+  filename: path.join(loggerConfig.directory, 'app-%DATE%.log'),
+  datePattern: 'YYYY-MM-DD',
+  maxSize: '20m',
+  maxFiles: '14d',
+  format: logFormat,
+})
+
+const errorFileTransport = new DailyRotateFile({
+  filename: path.join(loggerConfig.directory, 'error-%DATE%.log'),
+  datePattern: 'YYYY-MM-DD',
+  level: 'error',
+  maxSize: '20m',
+  maxFiles: '30d',
+  format: logFormat,
+})
+
+const exceptionFileTransport = new DailyRotateFile({
+  filename: path.join(loggerConfig.directory, 'exceptions-%DATE%.log'),
+  datePattern: 'YYYY-MM-DD',
+  maxSize: '20m',
+  maxFiles: '30d',
+  format: logFormat,
+})
+
+const rejectionFileTransport = new DailyRotateFile({
+  filename: path.join(loggerConfig.directory, 'rejections-%DATE%.log'),
+  datePattern: 'YYYY-MM-DD',
+  maxSize: '20m',
+  maxFiles: '30d',
+  format: logFormat,
+})
+
+const transports: winston.transport[] = [appFileTransport, errorFileTransport]
+
+if (loggerConfig.consoleEnabled) {
+  transports.push(
+    new winston.transports.Console({
+      format: consoleFormat,
+    })
+  )
+}
 
 export const logger = winston.createLogger({
-  level: process.env.LOG_LEVEL || 'info',
-  format: process.env.NODE_ENV === 'production' ? prodFormat : devFormat,
-  transports: [
-    new winston.transports.Console(),
-    new winston.transports.File({
-      filename: 'logs/error.log',
-      level: 'error',
-      format: combine(timestamp(), json()),
-    }),
-    new winston.transports.File({
-      filename: 'logs/combined.log',
-      format: combine(timestamp(), json()),
-    }),
-  ],
+  levels: winston.config.npm.levels,
+  level: loggerConfig.level,
+  format: logFormat,
+  defaultMeta: {
+    service: loggerConfig.serviceName,
+    env: process.env.NODE_ENV || 'development',
+    pid: process.pid,
+  },
+  transports,
+  exceptionHandlers: [exceptionFileTransport],
+  rejectionHandlers: [rejectionFileTransport],
+  exitOnError: false,
 })
+
+export const createModuleLogger = (
+  moduleName: string,
+  defaultMeta: Record<string, unknown> = {}
+) => {
+  return logger.child({
+    module: moduleName,
+    ...(sanitizeLogData(defaultMeta) as Record<string, unknown>),
+  })
+}

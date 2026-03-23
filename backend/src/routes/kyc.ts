@@ -66,10 +66,11 @@ router.get('/summary', adminAuth('reports:read'), async (req: Request, res: Resp
   // quick counts
   const { PrismaClient } = await import('@prisma/client')
   const prisma = new PrismaClient()
+  const prismaAny = prisma as any
 
-  const pending = await prisma.user.count({ where: { kycStatus: 'pending' } })
-  const approved = await prisma.user.count({ where: { kycStatus: 'approved' } })
-  const rejected = await prisma.user.count({ where: { kycStatus: 'rejected' } })
+  const pending = await prismaAny.user.count({ where: { kycStatus: 'pending' } })
+  const approved = await prismaAny.user.count({ where: { kycStatus: 'approved' } })
+  const rejected = await prismaAny.user.count({ where: { kycStatus: 'rejected' } })
 
   res.json({ pending, approved, rejected })
 })

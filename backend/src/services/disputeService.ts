@@ -1,6 +1,5 @@
 import { redisClient } from './cacheService'
 import { dbService } from './databaseService'
-import { v4 as uuidv4 } from 'uuid'
 
 export type DisputeType = 'non_payment' | 'fraud' | 'rule_violation'
 export type DisputeStatus = 'open' | 'voting' | 'resolved' | 'escalated'
@@ -35,7 +34,13 @@ const GROUP_INDEX_PREFIX = 'group_disputes:'
 const DEFAULT_VOTING_WINDOW = Number(process.env.DISPUTE_VOTING_WINDOW_SECONDS) || 60 * 60 * 24 * 2
 
 export const disputeService = {
-  async fileDispute(groupId: string, filedBy: string, type: DisputeType, summary?: string, evidence: { type: EvidenceItem['type']; content: string }[]) {
+  async fileDispute(
+    groupId: string,
+    filedBy: string,
+    type: DisputeType,
+    summary?: string,
+    evidence: { type: EvidenceItem['type']; content: string }[] = []
+  ) {
     // verify that filer is a member
     const members = await dbService.getGroupMembers(groupId)
     const isMember = members.some((m: any) => m.userId === filedBy)
@@ -43,7 +48,7 @@ export const disputeService = {
       throw new Error('Only group members can file disputes')
     }
 
-    const id = uuidv4()
+    const id = crypto.randomUUID()
     const createdAt = new Date().toISOString()
     const votingDeadline = new Date(Date.now() + DEFAULT_VOTING_WINDOW * 1000).toISOString()
 
@@ -53,7 +58,12 @@ export const disputeService = {
       filedBy,
       type,
       summary,
-      evidence: (evidence || []).map((e) => ({ id: uuidv4(), type: e.type, content: e.content, uploadedAt: new Date().toISOString() })),
+      evidence: evidence.map((e) => ({
+        id: crypto.randomUUID(),
+        type: e.type,
+        content: e.content,
+        uploadedAt: new Date().toISOString(),
+      })),
       status: 'voting',
       votes: {},
       createdAt,
@@ -77,7 +87,9 @@ export const disputeService = {
     const pipe = redisClient.pipeline()
     ids.forEach((id) => pipe.get(DISPUTE_PREFIX + id))
     const res = await pipe.exec()
-    return res.map((r) => (r[1] ? JSON.parse(r[1] as string) : null)).filter(Boolean) as Dispute[]
+    return (res || [])
+      .map((r) => (r && r[1] ? JSON.parse(r[1] as string) : null))
+      .filter(Boolean) as Dispute[]
   },
 
   async voteOnDispute(disputeId: string, voter: string, vote: 'yes' | 'no') {
