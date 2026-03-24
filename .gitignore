@@ -69,6 +69,6 @@ Thumbs.db
 .DS_Store
 
 # Kiro (allow specs to be tracked)
-.kiro/*
+.kiro/
 !.kiro/specs/
 .vercel
