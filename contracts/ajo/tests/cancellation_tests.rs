@@ -4,7 +4,7 @@ use soroban_ajo::{AjoContract, AjoContractClient, AjoError};
 use soroban_sdk::{testutils::{Address as _, Ledger}, Address, Env};
 
 /// Helper function to create a test environment and contract
-fn setup_test_env() -> (Env, AjoContractClient<'static>, Address, Address, Address) {
+fn setup_test_env() -> (Env, AjoContractClient<'static>, Address, Address, Address, Address) {
     let env = Env::default();
     env.mock_all_auths();
 
@@ -15,16 +15,18 @@ fn setup_test_env() -> (Env, AjoContractClient<'static>, Address, Address, Addre
     let creator = Address::generate(&env);
     let member2 = Address::generate(&env);
     let member3 = Address::generate(&env);
+    let token_admin = Address::generate(&env);
+    let token = env.register_stellar_asset_contract(token_admin);
 
-    (env, client, creator, member2, member3)
+    (env, client, creator, member2, member3, token)
 }
 
 #[test]
 fn test_cancel_group_before_payout() {
-    let (_env, client, creator, member2, member3) = setup_test_env();
+    let (_env, client, creator, member2, member3, token) = setup_test_env();
 
     // Create group
-    let group_id = client.create_group(&creator, &100_000_000i128, &604_800u64, &3u32, &86400u64, &5u32);
+    let group_id = client.create_group(&creator, &token, &100_000_000i128, &604_800u64, &3u32, &86400u64, &5u32, &0u32);
     
     // Members join
     client.join_group(&member2, &group_id);
@@ -52,10 +54,10 @@ fn test_cancel_group_before_payout() {
 
 #[test]
 fn test_cannot_cancel_after_payout() {
-    let (env, client, creator, member2, member3) = setup_test_env();
+    let (env, client, creator, member2, member3, token) = setup_test_env();
 
     // Create group
-    let group_id = client.create_group(&creator, &100_000_000i128, &604_800u64, &3u32, &86400u64, &5u32);
+    let group_id = client.create_group(&creator, &token, &100_000_000i128, &604_800u64, &3u32, &86400u64, &5u32, &0u32);
     
     // Members join
     client.join_group(&member2, &group_id);
@@ -79,10 +81,10 @@ fn test_cannot_cancel_after_payout() {
 
 #[test]
 fn test_only_creator_can_cancel() {
-    let (_env, client, creator, member2, member3) = setup_test_env();
+    let (_env, client, creator, member2, member3, token) = setup_test_env();
 
     // Create group
-    let group_id = client.create_group(&creator, &100_000_000i128, &604_800u64, &3u32, &86400u64, &5u32);
+    let group_id = client.create_group(&creator, &token, &100_000_000i128, &604_800u64, &3u32, &86400u64, &5u32, &0u32);
     
     // Member joins
     client.join_group(&member2, &group_id);
@@ -94,10 +96,10 @@ fn test_only_creator_can_cancel() {
 
 #[test]
 fn test_request_refund_after_cycle_expires() {
-    let (env, client, creator, member2, member3) = setup_test_env();
+    let (env, client, creator, member2, member3, token) = setup_test_env();
 
     // Create group
-    let group_id = client.create_group(&creator, &100_000_000i128, &604_800u64, &3u32, &86400u64, &5u32);
+    let group_id = client.create_group(&creator, &token, &100_000_000i128, &604_800u64, &3u32, &86400u64, &5u32, &0u32);
     
     // Members join
     client.join_group(&member2, &group_id);
@@ -124,10 +126,10 @@ fn test_request_refund_after_cycle_expires() {
 
 #[test]
 fn test_cannot_request_refund_before_cycle_expires() {
-    let (_env, client, creator, member2, _) = setup_test_env();
+    let (_env, client, creator, member2, _, token) = setup_test_env();
 
     // Create group
-    let group_id = client.create_group(&creator, &100_000_000i128, &604_800u64, &3u32, &86400u64, &5u32);
+    let group_id = client.create_group(&creator, &token, &100_000_000i128, &604_800u64, &3u32, &86400u64, &5u32, &0u32);
     
     // Member joins
     client.join_group(&member2, &group_id);
@@ -139,10 +141,10 @@ fn test_cannot_request_refund_before_cycle_expires() {
 
 #[test]
 fn test_voting_on_refund_request() {
-    let (env, client, creator, member2, member3) = setup_test_env();
+    let (env, client, creator, member2, member3, token) = setup_test_env();
 
     // Create group
-    let group_id = client.create_group(&creator, &100_000_000i128, &604_800u64, &3u32, &86400u64, &5u32);
+    let group_id = client.create_group(&creator, &token, &100_000_000i128, &604_800u64, &3u32, &86400u64, &5u32, &0u32);
     
     // Members join
     client.join_group(&member2, &group_id);
@@ -172,10 +174,10 @@ fn test_voting_on_refund_request() {
 
 #[test]
 fn test_cannot_vote_twice() {
-    let (env, client, creator, member2, _) = setup_test_env();
+    let (env, client, creator, member2, _, token) = setup_test_env();
 
     // Create group
-    let group_id = client.create_group(&creator, &100_000_000i128, &604_800u64, &3u32, &86400u64, &5u32);
+    let group_id = client.create_group(&creator, &token, &100_000_000i128, &604_800u64, &3u32, &86400u64, &5u32, &0u32);
     
     // Member joins
     client.join_group(&member2, &group_id);
@@ -198,10 +200,10 @@ fn test_cannot_vote_twice() {
 
 #[test]
 fn test_execute_approved_refund() {
-    let (env, client, creator, member2, member3) = setup_test_env();
+    let (env, client, creator, member2, member3, token) = setup_test_env();
 
     // Create group
-    let group_id = client.create_group(&creator, &100_000_000i128, &604_800u64, &3u32, &86400u64, &5u32);
+    let group_id = client.create_group(&creator, &token, &100_000_000i128, &604_800u64, &3u32, &86400u64, &5u32, &0u32);
     
     // Members join
     client.join_group(&member2, &group_id);
@@ -244,10 +246,10 @@ fn test_execute_approved_refund() {
 
 #[test]
 fn test_execute_rejected_refund() {
-    let (env, client, creator, member2, member3) = setup_test_env();
+    let (env, client, creator, member2, member3, token) = setup_test_env();
 
     // Create group
-    let group_id = client.create_group(&creator, &100_000_000i128, &604_800u64, &3u32, &86400u64, &5u32);
+    let group_id = client.create_group(&creator, &token, &100_000_000i128, &604_800u64, &3u32, &86400u64, &5u32, &0u32);
     
     // Members join
     client.join_group(&member2, &group_id);
@@ -278,10 +280,10 @@ fn test_execute_rejected_refund() {
 
 #[test]
 fn test_cannot_execute_before_voting_ends() {
-    let (env, client, creator, member2, _) = setup_test_env();
+    let (env, client, creator, member2, _, token) = setup_test_env();
 
     // Create group
-    let group_id = client.create_group(&creator, &100_000_000i128, &604_800u64, &3u32, &86400u64, &5u32);
+    let group_id = client.create_group(&creator, &token, &100_000_000i128, &604_800u64, &3u32, &86400u64, &5u32, &0u32);
     
     // Member joins
     client.join_group(&member2, &group_id);
@@ -304,14 +306,14 @@ fn test_cannot_execute_before_voting_ends() {
 
 #[test]
 fn test_emergency_refund_by_admin() {
-    let (env, client, creator, member2, _) = setup_test_env();
+    let (env, client, creator, member2, _, token) = setup_test_env();
 
     // Initialize contract with admin
     let admin = Address::generate(&env);
     client.initialize(&admin);
 
     // Create group
-    let group_id = client.create_group(&creator, &100_000_000i128, &604_800u64, &3u32, &86400u64, &5u32);
+    let group_id = client.create_group(&creator, &token, &100_000_000i128, &604_800u64, &3u32, &86400u64, &5u32, &0u32);
     
     // Member joins and contributes
     client.join_group(&member2, &group_id);
@@ -332,14 +334,14 @@ fn test_emergency_refund_by_admin() {
 
 #[test]
 fn test_non_admin_cannot_emergency_refund() {
-    let (env, client, creator, member2, _) = setup_test_env();
+    let (env, client, creator, member2, _, token) = setup_test_env();
 
     // Initialize contract with admin
     let admin = Address::generate(&env);
     client.initialize(&admin);
 
     // Create group
-    let group_id = client.create_group(&creator, &100_000_000i128, &604_800u64, &3u32, &86400u64, &5u32);
+    let group_id = client.create_group(&creator, &token, &100_000_000i128, &604_800u64, &3u32, &86400u64, &5u32, &0u32);
     
     // Non-admin tries emergency refund - should fail
     let result = client.try_emergency_refund(&member2, &group_id);
@@ -348,10 +350,10 @@ fn test_non_admin_cannot_emergency_refund() {
 
 #[test]
 fn test_cannot_contribute_to_cancelled_group() {
-    let (_env, client, creator, member2, _) = setup_test_env();
+    let (_env, client, creator, member2, _, token) = setup_test_env();
 
     // Create group
-    let group_id = client.create_group(&creator, &100_000_000i128, &604_800u64, &3u32, &86400u64, &5u32);
+    let group_id = client.create_group(&creator, &token, &100_000_000i128, &604_800u64, &3u32, &86400u64, &5u32, &0u32);
     
     // Member joins
     client.join_group(&member2, &group_id);
@@ -367,10 +369,10 @@ fn test_cannot_contribute_to_cancelled_group() {
 
 #[test]
 fn test_cannot_execute_payout_on_cancelled_group() {
-    let (env, client, creator, member2, member3) = setup_test_env();
+    let (env, client, creator, member2, member3, token) = setup_test_env();
 
     // Create group
-    let group_id = client.create_group(&creator, &100_000_000i128, &604_800u64, &3u32, &86400u64, &5u32);
+    let group_id = client.create_group(&creator, &token, &100_000_000i128, &604_800u64, &3u32, &86400u64, &5u32, &0u32);
     
     // Members join and contribute
     client.join_group(&member2, &group_id);
@@ -394,10 +396,10 @@ fn test_cannot_execute_payout_on_cancelled_group() {
 
 #[test]
 fn test_refund_request_duplicate_prevention() {
-    let (env, client, creator, member2, _) = setup_test_env();
+    let (env, client, creator, member2, _, token) = setup_test_env();
 
     // Create group
-    let group_id = client.create_group(&creator, &100_000_000i128, &604_800u64, &3u32, &86400u64, &5u32);
+    let group_id = client.create_group(&creator, &token, &100_000_000i128, &604_800u64, &3u32, &86400u64, &5u32, &0u32);
     
     // Member joins
     client.join_group(&member2, &group_id);

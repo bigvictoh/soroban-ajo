@@ -4,7 +4,7 @@ use soroban_ajo::{AjoContract, AjoContractClient};
 use soroban_sdk::{testutils::{Address as _, Ledger}, Address, Env};
 
 /// Helper function to create a test environment and contract
-fn setup_test_env() -> (Env, AjoContractClient<'static>, Address, Address, Address) {
+fn setup_test_env() -> (Env, AjoContractClient<'static>, Address, Address, Address, Address) {
     let env = Env::default();
     env.mock_all_auths();
 
@@ -15,13 +15,15 @@ fn setup_test_env() -> (Env, AjoContractClient<'static>, Address, Address, Addre
     let creator = Address::generate(&env);
     let member2 = Address::generate(&env);
     let member3 = Address::generate(&env);
+    let token_admin = Address::generate(&env);
+    let token = env.register_stellar_asset_contract(token_admin);
 
-    (env, client, creator, member2, member3)
+    (env, client, creator, member2, member3, token)
 }
 
 #[test]
 fn test_create_group_with_grace_period_and_penalty() {
-    let (_env, client, creator, _, _) = setup_test_env();
+    let (_env, client, creator, _, _, token) = setup_test_env();
 
     let contribution = 100_000_000i128; // 10 XLM
     let cycle_duration = 604_800u64; // 1 week
@@ -31,11 +33,13 @@ fn test_create_group_with_grace_period_and_penalty() {
 
     let group_id = client.create_group(
         &creator,
+        &token,
         &contribution,
         &cycle_duration,
         &max_members,
         &grace_period,
         &penalty_rate,
+        &0u32,
     );
 
     assert_eq!(group_id, 1);
@@ -48,7 +52,7 @@ fn test_create_group_with_grace_period_and_penalty() {
 
 #[test]
 fn test_on_time_contribution() {
-    let (env, client, creator, member2, _) = setup_test_env();
+    let (env, client, creator, member2, _, token) = setup_test_env();
 
     let contribution = 100_000_000i128;
     let cycle_duration = 604_800u64;
@@ -58,11 +62,13 @@ fn test_on_time_contribution() {
 
     let group_id = client.create_group(
         &creator,
+        &token,
         &contribution,
         &cycle_duration,
         &max_members,
         &grace_period,
         &penalty_rate,
+        &0u32,
     );
 
     // Join group
@@ -86,7 +92,7 @@ fn test_on_time_contribution() {
 
 #[test]
 fn test_late_contribution_with_penalty() {
-    let (env, client, creator, member2, _) = setup_test_env();
+    let (env, client, creator, member2, _, token) = setup_test_env();
 
     let contribution = 100_000_000i128; // 10 XLM
     let cycle_duration = 604_800u64; // 1 week
@@ -96,11 +102,13 @@ fn test_late_contribution_with_penalty() {
 
     let group_id = client.create_group(
         &creator,
+        &token,
         &contribution,
         &cycle_duration,
         &max_members,
         &grace_period,
         &penalty_rate,
+        &0u32,
     );
 
     // Join group
@@ -139,7 +147,7 @@ fn test_late_contribution_with_penalty() {
 
 #[test]
 fn test_contribution_after_grace_period_fails() {
-    let (env, client, creator, member2, _) = setup_test_env();
+    let (env, client, creator, member2, _, token) = setup_test_env();
 
     let contribution = 100_000_000i128;
     let cycle_duration = 604_800u64;
@@ -149,11 +157,13 @@ fn test_contribution_after_grace_period_fails() {
 
     let group_id = client.create_group(
         &creator,
+        &token,
         &contribution,
         &cycle_duration,
         &max_members,
         &grace_period,
         &penalty_rate,
+        &0u32,
     );
 
     client.join_group(&member2, &group_id);
@@ -174,7 +184,7 @@ fn test_contribution_after_grace_period_fails() {
 
 #[test]
 fn test_payout_includes_penalties() {
-    let (env, client, creator, member2, _) = setup_test_env();
+    let (env, client, creator, member2, _, token) = setup_test_env();
 
     let contribution = 100_000_000i128; // 10 XLM
     let cycle_duration = 604_800u64;
@@ -184,11 +194,13 @@ fn test_payout_includes_penalties() {
 
     let group_id = client.create_group(
         &creator,
+        &token,
         &contribution,
         &cycle_duration,
         &max_members,
         &grace_period,
         &penalty_rate,
+        &0u32,
     );
 
     client.join_group(&member2, &group_id);
@@ -220,7 +232,7 @@ fn test_payout_includes_penalties() {
 
 #[test]
 fn test_payout_delayed_during_grace_period() {
-    let (env, client, creator, member2, _) = setup_test_env();
+    let (env, client, creator, member2, _, token) = setup_test_env();
 
     let contribution = 100_000_000i128;
     let cycle_duration = 604_800u64;
@@ -230,11 +242,13 @@ fn test_payout_delayed_during_grace_period() {
 
     let group_id = client.create_group(
         &creator,
+        &token,
         &contribution,
         &cycle_duration,
         &max_members,
         &grace_period,
         &penalty_rate,
+        &0u32,
     );
 
     client.join_group(&member2, &group_id);
@@ -256,7 +270,7 @@ fn test_payout_delayed_during_grace_period() {
 
 #[test]
 fn test_reliability_score_calculation() {
-    let (env, client, creator, member2, member3) = setup_test_env();
+    let (env, client, creator, member2, member3, token) = setup_test_env();
 
     let contribution = 100_000_000i128;
     let cycle_duration = 604_800u64;
@@ -266,11 +280,13 @@ fn test_reliability_score_calculation() {
 
     let group_id = client.create_group(
         &creator,
+        &token,
         &contribution,
         &cycle_duration,
         &max_members,
         &grace_period,
         &penalty_rate,
+        &0u32,
     );
 
     client.join_group(&member2, &group_id);
@@ -308,7 +324,7 @@ fn test_reliability_score_calculation() {
 
 #[test]
 fn test_group_status_includes_penalty_info() {
-    let (env, client, creator, member2, _) = setup_test_env();
+    let (env, client, creator, member2, _, token) = setup_test_env();
 
     let contribution = 100_000_000i128;
     let cycle_duration = 604_800u64;
@@ -318,11 +334,13 @@ fn test_group_status_includes_penalty_info() {
 
     let group_id = client.create_group(
         &creator,
+        &token,
         &contribution,
         &cycle_duration,
         &max_members,
         &grace_period,
         &penalty_rate,
+        &0u32,
     );
 
     client.join_group(&member2, &group_id);
@@ -345,7 +363,7 @@ fn test_group_status_includes_penalty_info() {
 
 #[test]
 fn test_invalid_penalty_rate() {
-    let (_env, client, creator, _, _) = setup_test_env();
+    let (_env, client, creator, _, _, token) = setup_test_env();
 
     let contribution = 100_000_000i128;
     let cycle_duration = 604_800u64;
@@ -355,11 +373,13 @@ fn test_invalid_penalty_rate() {
 
     let result = client.try_create_group(
         &creator,
+        &token,
         &contribution,
         &cycle_duration,
         &max_members,
         &grace_period,
         &penalty_rate,
+        &0u32,
     );
     
     assert!(result.is_err());
@@ -368,7 +388,7 @@ fn test_invalid_penalty_rate() {
 
 #[test]
 fn test_invalid_grace_period() {
-    let (_env, client, creator, _, _) = setup_test_env();
+    let (_env, client, creator, _, _, token) = setup_test_env();
 
     let contribution = 100_000_000i128;
     let cycle_duration = 604_800u64;
@@ -378,11 +398,13 @@ fn test_invalid_grace_period() {
 
     let result = client.try_create_group(
         &creator,
+        &token,
         &contribution,
         &cycle_duration,
         &max_members,
         &grace_period,
         &penalty_rate,
+        &0u32,
     );
     
     assert!(result.is_err());

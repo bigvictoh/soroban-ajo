@@ -9,14 +9,16 @@ use soroban_ajo::{AjoContract, AjoContractClient, AjoError};
 use soroban_sdk::{testutils::{Address as _, Ledger}, Address, Env};
 
 /// Helper function to create a test environment and contract
-fn setup_test_env() -> (Env, AjoContractClient<'static>) {
+fn setup_test_env() -> (Env, AjoContractClient<'static>, Address) {
     let env = Env::default();
     env.mock_all_auths();
 
     let contract_id = env.register_contract(None, AjoContract);
     let client = AjoContractClient::new(&env, &contract_id);
+    let token_admin = Address::generate(&env);
+    let token = env.register_stellar_asset_contract(token_admin);
 
-    (env, client)
+    (env, client, token)
 }
 
 /// Helper function to generate multiple test addresses
@@ -40,7 +42,7 @@ fn complete_cycle(env: &Env, client: &AjoContractClient, group_id: &u64, members
 
 #[test]
 fn test_full_lifecycle_create_join_contribute_payout_complete() {
-    let (env, client) = setup_test_env();
+    let (env, client, token) = setup_test_env();
     let members = generate_addresses(&env, 5);
 
     // Step 1: Create group
@@ -49,7 +51,7 @@ fn test_full_lifecycle_create_join_contribute_payout_complete() {
     let cycle_duration = 604_800u64; // 1 week
     let max_members = 5u32;
 
-    let group_id = client.create_group(creator, &contribution, &cycle_duration, &max_members, &86400u64, &5u32);
+    let group_id = client.create_group(creator, &token, &contribution, &cycle_duration, &max_members, &86400u64, &5u32, &0u32);
     assert_eq!(group_id, 1);
 
     // Verify initial state
@@ -111,17 +113,17 @@ fn test_full_lifecycle_create_join_contribute_payout_complete() {
 
 #[test]
 fn test_multiple_groups_independent_lifecycle() {
-    let (env, client) = setup_test_env();
+    let (env, client, token) = setup_test_env();
 
     // Create addresses for different groups
     let group1_members = generate_addresses(&env, 3);
     let group2_members = generate_addresses(&env, 4);
 
     // Create Group 1 (3 members, 10 XLM contribution)
-    let group_id1 = client.create_group(&group1_members[0], &100_000_000i128, &604_800u64, &3u32, &86400u64, &5u32);
+    let group_id1 = client.create_group(&group1_members[0], &token, &100_000_000i128, &604_800u64, &3u32, &86400u64, &5u32, &0u32);
 
     // Create Group 2 (4 members, 20 XLM contribution)
-    let group_id2 = client.create_group(&group2_members[0], &200_000_000i128, &1_209_600u64, &4u32, &86400u64, &5u32);
+    let group_id2 = client.create_group(&group2_members[0], &token, &200_000_000i128, &1_209_600u64, &4u32, &86400u64, &5u32, &0u32);
 
     assert_eq!(group_id1, 1);
     assert_eq!(group_id2, 2);
@@ -170,16 +172,16 @@ fn test_multiple_groups_independent_lifecycle() {
 
 #[test]
 fn test_multiple_groups_with_overlapping_members() {
-    let (env, client) = setup_test_env();
+    let (env, client, token) = setup_test_env();
     let members = generate_addresses(&env, 5);
 
     // Create Group 1 with members 0, 1, 2
-    let group_id1 = client.create_group(&members[0], &100_000_000i128, &604_800u64, &3u32, &86400u64, &5u32);
+    let group_id1 = client.create_group(&members[0], &token, &100_000_000i128, &604_800u64, &3u32, &86400u64, &5u32, &0u32);
     client.join_group(&members[1], &group_id1);
     client.join_group(&members[2], &group_id1);
 
     // Create Group 2 with members 1, 3, 4 (member 1 is in both groups)
-    let group_id2 = client.create_group(&members[1], &150_000_000i128, &604_800u64, &3u32, &86400u64, &5u32);
+    let group_id2 = client.create_group(&members[1], &token, &150_000_000i128, &604_800u64, &3u32, &86400u64, &5u32, &0u32);
     client.join_group(&members[3], &group_id2);
     client.join_group(&members[4], &group_id2);
 
@@ -216,11 +218,11 @@ fn test_multiple_groups_with_overlapping_members() {
 
 #[test]
 fn test_failure_scenario_incomplete_contributions() {
-    let (env, client) = setup_test_env();
+    let (env, client, token) = setup_test_env();
     let members = generate_addresses(&env, 4);
 
     // Create group with 4 members
-    let group_id = client.create_group(&members[0], &100_000_000i128, &604_800u64, &4u32, &86400u64, &5u32);
+    let group_id = client.create_group(&members[0], &token, &100_000_000i128, &604_800u64, &4u32, &86400u64, &5u32, &0u32);
     for member in &members[1..] {
         client.join_group(member, &group_id);
     }
@@ -243,10 +245,10 @@ fn test_failure_scenario_incomplete_contributions() {
 
 #[test]
 fn test_failure_scenario_double_contribution() {
-    let (env, client) = setup_test_env();
+    let (env, client, token) = setup_test_env();
     let members = generate_addresses(&env, 3);
 
-    let group_id = client.create_group(&members[0], &100_000_000i128, &604_800u64, &3u32, &86400u64, &5u32);
+    let group_id = client.create_group(&members[0], &token, &100_000_000i128, &604_800u64, &3u32, &86400u64, &5u32, &0u32);
     for member in &members[1..] {
         client.join_group(member, &group_id);
     }
@@ -261,11 +263,11 @@ fn test_failure_scenario_double_contribution() {
 
 #[test]
 fn test_failure_scenario_join_after_max_members() {
-    let (env, client) = setup_test_env();
+    let (env, client, token) = setup_test_env();
     let members = generate_addresses(&env, 4);
 
     // Create group with max 3 members
-    let group_id = client.create_group(&members[0], &100_000_000i128, &604_800u64, &3u32, &86400u64, &5u32);
+    let group_id = client.create_group(&members[0], &token, &100_000_000i128, &604_800u64, &3u32, &86400u64, &5u32, &0u32);
     client.join_group(&members[1], &group_id);
     client.join_group(&members[2], &group_id);
 
@@ -280,10 +282,10 @@ fn test_failure_scenario_join_after_max_members() {
 
 #[test]
 fn test_failure_scenario_contribute_after_completion() {
-    let (env, client) = setup_test_env();
+    let (env, client, token) = setup_test_env();
     let members = generate_addresses(&env, 2);
 
-    let group_id = client.create_group(&members[0], &100_000_000i128, &604_800u64, &2u32, &86400u64, &5u32);
+    let group_id = client.create_group(&members[0], &token, &100_000_000i128, &604_800u64, &2u32, &86400u64, &5u32, &0u32);
     client.join_group(&members[1], &group_id);
 
     // Complete all cycles
@@ -300,11 +302,11 @@ fn test_failure_scenario_contribute_after_completion() {
 
 #[test]
 fn test_failure_scenario_non_member_contribution() {
-    let (env, client) = setup_test_env();
+    let (env, client, token) = setup_test_env();
     let members = generate_addresses(&env, 3);
     let non_member = Address::generate(&env);
 
-    let group_id = client.create_group(&members[0], &100_000_000i128, &604_800u64, &3u32, &86400u64, &5u32);
+    let group_id = client.create_group(&members[0], &token, &100_000_000i128, &604_800u64, &3u32, &86400u64, &5u32, &0u32);
 
     // Non-member tries to contribute
     let result = client.try_contribute(&non_member, &group_id);
@@ -313,10 +315,10 @@ fn test_failure_scenario_non_member_contribution() {
 
 #[test]
 fn test_failure_scenario_join_already_member() {
-    let (env, client) = setup_test_env();
+    let (env, client, token) = setup_test_env();
     let members = generate_addresses(&env, 2);
 
-    let group_id = client.create_group(&members[0], &100_000_000i128, &604_800u64, &5u32, &86400u64, &5u32);
+    let group_id = client.create_group(&members[0], &token, &100_000_000i128, &604_800u64, &5u32, &86400u64, &5u32, &0u32);
     client.join_group(&members[1], &group_id);
 
     // Try to join again
@@ -326,32 +328,32 @@ fn test_failure_scenario_join_already_member() {
 
 #[test]
 fn test_failure_scenario_invalid_group_creation() {
-    let (env, client) = setup_test_env();
+    let (env, client, token) = setup_test_env();
     let creator = Address::generate(&env);
 
     // Zero contribution amount
-    let result = client.try_create_group(&creator, &0i128, &604_800u64, &5u32, &86400u64, &5u32);
+    let result = client.try_create_group(&creator, &token, &0i128, &604_800u64, &5u32, &86400u64, &5u32, &0u32);
     assert_eq!(result, Err(Ok(AjoError::ContributionAmountZero)));
 
     // Negative contribution amount
-    let result = client.try_create_group(&creator, &-100i128, &604_800u64, &5u32, &86400u64, &5u32);
+    let result = client.try_create_group(&creator, &token, &-100i128, &604_800u64, &5u32, &86400u64, &5u32, &0u32);
     assert_eq!(result, Err(Ok(AjoError::ContributionAmountNegative)));
 
     // Zero cycle duration
-    let result = client.try_create_group(&creator, &100_000_000i128, &0u64, &5u32, &86400u64, &5u32);
+    let result = client.try_create_group(&creator, &token, &100_000_000i128, &0u64, &5u32, &86400u64, &5u32, &0u32);
     assert_eq!(result, Err(Ok(AjoError::CycleDurationZero)));
 
     // Max members below minimum (less than 2)
-    let result = client.try_create_group(&creator, &100_000_000i128, &604_800u64, &1u32, &86400u64, &5u32);
+    let result = client.try_create_group(&creator, &token, &100_000_000i128, &604_800u64, &1u32, &86400u64, &5u32, &0u32);
     assert_eq!(result, Err(Ok(AjoError::MaxMembersBelowMinimum)));
 }
 
 #[test]
 fn test_complex_scenario_partial_completion_with_recovery() {
-    let (env, client) = setup_test_env();
+    let (env, client, token) = setup_test_env();
     let members = generate_addresses(&env, 3);
 
-    let group_id = client.create_group(&members[0], &100_000_000i128, &604_800u64, &3u32, &86400u64, &5u32);
+    let group_id = client.create_group(&members[0], &token, &100_000_000i128, &604_800u64, &3u32, &86400u64, &5u32, &0u32);
     for member in &members[1..] {
         client.join_group(member, &group_id);
     }
@@ -385,11 +387,11 @@ fn test_complex_scenario_partial_completion_with_recovery() {
 
 #[test]
 fn test_large_group_full_lifecycle() {
-    let (env, client) = setup_test_env();
+    let (env, client, token) = setup_test_env();
     let members = generate_addresses(&env, 10);
 
     // Create group with 10 members
-    let group_id = client.create_group(&members[0], &50_000_000i128, &604_800u64, &10u32, &86400u64, &5u32);
+    let group_id = client.create_group(&members[0], &token, &50_000_000i128, &604_800u64, &10u32, &86400u64, &5u32, &0u32);
 
     // All members join
     for member in &members[1..] {
@@ -417,11 +419,11 @@ fn test_large_group_full_lifecycle() {
 
 #[test]
 fn test_sequential_group_creation_and_completion() {
-    let (env, client) = setup_test_env();
+    let (env, client, token) = setup_test_env();
     let members = generate_addresses(&env, 3);
 
     // Create and complete first group
-    let group_id1 = client.create_group(&members[0], &100_000_000i128, &604_800u64, &3u32, &86400u64, &5u32);
+    let group_id1 = client.create_group(&members[0], &token, &100_000_000i128, &604_800u64, &3u32, &86400u64, &5u32, &0u32);
     for member in &members[1..] {
         client.join_group(member, &group_id1);
     }
@@ -433,7 +435,7 @@ fn test_sequential_group_creation_and_completion() {
     assert_eq!(client.is_complete(&group_id1), true);
 
     // Create second group with same members
-    let group_id2 = client.create_group(&members[0], &150_000_000i128, &604_800u64, &3u32, &86400u64, &5u32);
+    let group_id2 = client.create_group(&members[0], &token, &150_000_000i128, &604_800u64, &3u32, &86400u64, &5u32, &0u32);
     for member in &members[1..] {
         client.join_group(member, &group_id2);
     }

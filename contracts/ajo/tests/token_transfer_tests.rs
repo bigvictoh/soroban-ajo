@@ -12,7 +12,7 @@ use soroban_sdk::{
 };
 
 /// Helper function to create a test environment with token contract
-fn setup_test_env_with_token() -> (Env, AjoContractClient<'static>, Address, token::Client<'static>) {
+fn setup_test_env_with_token() -> (Env, AjoContractClient<'static>, Address, token::Client<'static>, token::StellarAssetClient<'static>) {
     let env = Env::default();
     env.mock_all_auths();
 
@@ -28,13 +28,14 @@ fn setup_test_env_with_token() -> (Env, AjoContractClient<'static>, Address, tok
     let token_admin = Address::generate(&env);
     let token_id = env.register_stellar_asset_contract(token_admin.clone());
     let token_client = token::Client::new(&env, &token_id);
+    let token_admin_client = token::StellarAssetClient::new(&env, &token_id);
 
-    (env, client, token_id, token_client)
+    (env, client, token_id, token_client, token_admin_client)
 }
 
 #[test]
 fn test_contribute_with_token_transfer() {
-    let (env, client, token_id, token_client) = setup_test_env_with_token();
+    let (env, client, token_id, token_client, token_admin_client) = setup_test_env_with_token();
 
     // Create members
     let creator = Address::generate(&env);
@@ -42,8 +43,8 @@ fn test_contribute_with_token_transfer() {
 
     // Mint tokens to members
     let contribution = 100_000_000i128; // 10 XLM equivalent
-    token_client.mint(&creator, &(contribution * 10));
-    token_client.mint(&member2, &(contribution * 10));
+    token_admin_client.mint(&creator, &(contribution * 10));
+    token_admin_client.mint(&member2, &(contribution * 10));
 
     // Create group with token
     let group_id = client.create_group(
@@ -54,6 +55,7 @@ fn test_contribute_with_token_transfer() {
         &2u32,
         &86400u64,
         &5u32,
+        &0u32,
     );
 
     // Join group
@@ -85,7 +87,7 @@ fn test_contribute_with_token_transfer() {
 
 #[test]
 fn test_payout_with_token_transfer() {
-    let (env, client, token_id, token_client) = setup_test_env_with_token();
+    let (env, client, token_id, token_client, token_admin_client) = setup_test_env_with_token();
 
     // Create members
     let creator = Address::generate(&env);
@@ -93,8 +95,8 @@ fn test_payout_with_token_transfer() {
 
     // Mint tokens to members
     let contribution = 100_000_000i128;
-    token_client.mint(&creator, &(contribution * 10));
-    token_client.mint(&member2, &(contribution * 10));
+    token_admin_client.mint(&creator, &(contribution * 10));
+    token_admin_client.mint(&member2, &(contribution * 10));
 
     // Create group
     let group_id = client.create_group(
@@ -105,6 +107,7 @@ fn test_payout_with_token_transfer() {
         &2u32,
         &86400u64,
         &5u32,
+        &0u32,
     );
 
     // Join group
@@ -146,7 +149,7 @@ fn test_payout_with_token_transfer() {
 
 #[test]
 fn test_full_cycle_with_token_transfers() {
-    let (env, client, token_id, token_client) = setup_test_env_with_token();
+    let (env, client, token_id, token_client, token_admin_client) = setup_test_env_with_token();
 
     // Create 3 members
     let members: Vec<Address> = (0..3).map(|_| Address::generate(&env)).collect();
@@ -154,7 +157,7 @@ fn test_full_cycle_with_token_transfers() {
     // Mint tokens to all members
     let contribution = 50_000_000i128;
     for member in &members {
-        token_client.mint(member, &(contribution * 10));
+        token_admin_client.mint(member, &(contribution * 10));
     }
 
     // Create group
@@ -166,6 +169,7 @@ fn test_full_cycle_with_token_transfers() {
         &3u32,
         &86400u64,
         &5u32,
+        &0u32,
     );
 
     // Join group
@@ -205,7 +209,7 @@ fn test_full_cycle_with_token_transfers() {
 
 #[test]
 fn test_cancel_group_with_refunds() {
-    let (env, client, token_id, token_client) = setup_test_env_with_token();
+    let (env, client, token_id, token_client, token_admin_client) = setup_test_env_with_token();
 
     // Create members
     let creator = Address::generate(&env);
@@ -213,8 +217,8 @@ fn test_cancel_group_with_refunds() {
 
     // Mint tokens
     let contribution = 100_000_000i128;
-    token_client.mint(&creator, &(contribution * 10));
-    token_client.mint(&member2, &(contribution * 10));
+    token_admin_client.mint(&creator, &(contribution * 10));
+    token_admin_client.mint(&member2, &(contribution * 10));
 
     // Create group
     let group_id = client.create_group(
@@ -225,6 +229,7 @@ fn test_cancel_group_with_refunds() {
         &2u32,
         &86400u64,
         &5u32,
+        &0u32,
     );
 
     // Join group
@@ -266,10 +271,12 @@ fn test_multiple_token_types() {
     let token1_admin = Address::generate(&env);
     let token1_id = env.register_stellar_asset_contract(token1_admin.clone());
     let token1_client = token::Client::new(&env, &token1_id);
+    let token1_admin_client = token::StellarAssetClient::new(&env, &token1_id);
 
     let token2_admin = Address::generate(&env);
     let token2_id = env.register_stellar_asset_contract(token2_admin.clone());
     let token2_client = token::Client::new(&env, &token2_id);
+    let token2_admin_client = token::StellarAssetClient::new(&env, &token2_id);
 
     // Create members
     let creator1 = Address::generate(&env);
@@ -277,8 +284,8 @@ fn test_multiple_token_types() {
 
     // Mint different tokens
     let contribution = 100_000_000i128;
-    token1_client.mint(&creator1, &(contribution * 10));
-    token2_client.mint(&creator2, &(contribution * 10));
+    token1_admin_client.mint(&creator1, &(contribution * 10));
+    token2_admin_client.mint(&creator2, &(contribution * 10));
 
     // Create groups with different tokens
     let group1_id = client.create_group(
@@ -289,6 +296,7 @@ fn test_multiple_token_types() {
         &2u32,
         &86400u64,
         &5u32,
+        &0u32,
     );
 
     let group2_id = client.create_group(
@@ -299,6 +307,7 @@ fn test_multiple_token_types() {
         &2u32,
         &86400u64,
         &5u32,
+        &0u32,
     );
 
     // Verify groups have different tokens
@@ -311,14 +320,14 @@ fn test_multiple_token_types() {
 
 #[test]
 fn test_get_contract_balance() {
-    let (env, client, token_id, token_client) = setup_test_env_with_token();
+    let (env, client, token_id, token_client, token_admin_client) = setup_test_env_with_token();
 
     // Create member
     let creator = Address::generate(&env);
 
     // Mint tokens
     let contribution = 100_000_000i128;
-    token_client.mint(&creator, &(contribution * 10));
+    token_admin_client.mint(&creator, &(contribution * 10));
 
     // Create group
     let group_id = client.create_group(
@@ -329,6 +338,7 @@ fn test_get_contract_balance() {
         &2u32,
         &86400u64,
         &5u32,
+        &0u32,
     );
 
     // Check initial contract balance
@@ -346,14 +356,14 @@ fn test_get_contract_balance() {
 #[test]
 #[should_panic(expected = "InsufficientBalance")]
 fn test_contribute_insufficient_balance() {
-    let (env, client, token_id, token_client) = setup_test_env_with_token();
+    let (env, client, token_id, _token_client, token_admin_client) = setup_test_env_with_token();
 
     // Create member
     let creator = Address::generate(&env);
 
     // Mint insufficient tokens
     let contribution = 100_000_000i128;
-    token_client.mint(&creator, &(contribution / 2)); // Only half needed
+    token_admin_client.mint(&creator, &(contribution / 2)); // Only half needed
 
     // Create group
     let group_id = client.create_group(
@@ -364,6 +374,7 @@ fn test_contribute_insufficient_balance() {
         &2u32,
         &86400u64,
         &5u32,
+        &0u32,
     );
 
     // Try to contribute (should fail)
@@ -373,7 +384,7 @@ fn test_contribute_insufficient_balance() {
 #[test]
 #[should_panic(expected = "InsufficientContractBalance")]
 fn test_payout_insufficient_contract_balance() {
-    let (env, client, token_id, token_client) = setup_test_env_with_token();
+    let (env, client, token_id, token_client, token_admin_client) = setup_test_env_with_token();
 
     // Create members
     let creator = Address::generate(&env);
@@ -381,8 +392,8 @@ fn test_payout_insufficient_contract_balance() {
 
     // Mint tokens
     let contribution = 100_000_000i128;
-    token_client.mint(&creator, &(contribution * 10));
-    token_client.mint(&member2, &(contribution * 10));
+    token_admin_client.mint(&creator, &(contribution * 10));
+    token_admin_client.mint(&member2, &(contribution * 10));
 
     // Create group
     let group_id = client.create_group(
@@ -393,6 +404,7 @@ fn test_payout_insufficient_contract_balance() {
         &2u32,
         &86400u64,
         &5u32,
+        &0u32,
     );
 
     // Join group
