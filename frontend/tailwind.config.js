@@ -273,6 +273,22 @@ darkMode: 'class',
         'bounce-in': 'cubic-bezier(0.68, -0.55, 0.265, 1.55)',
         elastic: 'cubic-bezier(0.175, 0.885, 0.32, 1.275)',
       },
+      // Issue #318: bento grid row sizes
+      gridAutoRows: {
+        'bento-sm': '160px',
+        'bento-md': '200px',
+        'bento-lg': '240px',
+      },
+      // Issue #318: animation delay utilities
+      animationDelay: {
+        75: '75ms',
+        100: '100ms',
+        150: '150ms',
+        200: '200ms',
+        300: '300ms',
+        500: '500ms',
+        700: '700ms',
+      },
       zIndex: {
         base: '0',
         dropdown: '1000',
