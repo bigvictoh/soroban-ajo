@@ -160,3 +160,4 @@ pub enum AjoError {
     /// No notification preferences found for this member.
     PreferencesNotFound = 48,
 }
+

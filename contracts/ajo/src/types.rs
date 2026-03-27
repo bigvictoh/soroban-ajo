@@ -216,9 +216,75 @@ pub struct GroupMetadata {
     pub rules: soroban_sdk::String,
 }
 
+#[contracttype]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[repr(u32)]
+pub enum DisputeType {
+    NonPayment = 0,        // Member not contributing
+    FraudulentClaim = 1,   // False insurance claim
+    RuleViolation = 2,     // Breaking group rules
+    PayoutDispute = 3,     // Disagreement on payout
+    Other = 4,
+}
+
+#[contracttype]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[repr(u32)]
+pub enum DisputeStatus {
+    Open = 0,
+    UnderReview = 1,
+    Voting = 2,
+    Resolved = 3,
+    Rejected = 4,
+}
+
+#[contracttype]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[repr(u32)]
+pub enum DisputeResolution {
+    NoAction = 0,
+    Warning = 1,
+    Penalty = 2,
+    Removal = 3,
+    Refund = 4,
+    GroupCancellation = 5,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct Dispute {
+    pub id: u64,
+    pub group_id: u64,
+    pub dispute_type: DisputeType,
+    pub complainant: Address,
+    pub defendant: Address,
+    pub description: soroban_sdk::String,
+    pub evidence_hash: BytesN<32>, // Hash of off-chain evidence
+    pub status: DisputeStatus,
+    pub created_at: u64,
+    pub voting_deadline: u64,
+    pub votes_for_action: u32,
+    pub votes_against_action: u32,
+    pub proposed_resolution: DisputeResolution,
+    pub final_resolution: Option<DisputeResolution>,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct DisputeVote {
+    pub dispute_id: u64,
+    pub voter: Address,
+    pub supports_action: bool,
+    pub timestamp: u64,
+}
+
 pub const MAX_NAME_LENGTH: u32 = 50;
 pub const MAX_DESCRIPTION_LENGTH: u32 = 250;
 pub const MAX_RULES_LENGTH: u32 = 1000;
+pub const VOTING_PERIOD: u64 = 604_800;
+pub const DISPUTE_VOTING_PERIOD: u64 = 604_800; // 7 days for disputes
+pub const REFUND_APPROVAL_THRESHOLD: u32 = 51;
+pub const DISPUTE_APPROVAL_THRESHOLD: u32 = 66;
 
 /// Tracks a refund request initiated by a member.
 #[contracttype]
@@ -309,6 +375,8 @@ pub enum RefundReason {
     MemberVote = 1,
     /// Emergency refund by admin.
     EmergencyRefund = 2,
+    /// Dispute resolution refund.
+    DisputeRefund = 3,
 }
 
 /// Voting period duration in seconds (7 days).

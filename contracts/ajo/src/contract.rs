@@ -1411,7 +1411,7 @@ impl AjoContract {
     ///
     /// # Errors
     /// * `GroupNotFound` - If no refund record exists
-    pub fn get_refund_record(
+pub fn get_refund_record(
         env: Env,
         group_id: u64,
         member: Address,

@@ -1,4 +1,6 @@
 mod ajo_flow;
+mod cancellation_tests;
+mod dispute_tests;
 mod group_status_tests;
 mod integration_tests;
 mod metadata_tests;

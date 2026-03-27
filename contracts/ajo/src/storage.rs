@@ -103,7 +103,9 @@ impl StorageKey {
     }
 }
 
+
 /// Returns the next available group ID and atomically increments the counter.
+
 ///
 /// The counter starts at 0 and is stored in instance storage. Each call
 /// increments it by 1 and returns the new value, so the first group
