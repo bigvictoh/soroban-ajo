@@ -19,6 +19,7 @@
   },
   "dependencies": {
     "@axe-core/react": "^4.11.1",
+    "@sentry/nextjs": "^8.0.0",
     "@stellar/freighter-api": "^6.0.1",
     "@tanstack/react-query": "^5.28.0",
     "axios": "^1.6.0",

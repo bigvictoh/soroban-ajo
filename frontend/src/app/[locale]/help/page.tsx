@@ -117,7 +117,30 @@ export default function HelpPage() {
           </div>
         </div>
 
-        {/* Category Filter */}
+        {/* More Resources */}
+        <div className="mb-12">
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">
+            Interactive Help
+          </h2>
+          <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-100 dark:border-gray-700 flex flex-col md:flex-row items-center justify-between gap-6">
+            <div className="text-center md:text-left">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Product Tour</h3>
+              <p className="text-gray-600 dark:text-gray-400 max-w-md">
+                Experience the guided tour again to learn about the key features of the Ajo platform.
+              </p>
+            </div>
+            <button
+              onClick={() => {
+                const { startTour, setHasCompletedTour } = require('@/hooks/useTour').useTourStore.getState();
+                setHasCompletedTour(false);
+                startTour();
+              }}
+              className="px-6 py-3 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-lg hover:bg-blue-200 dark:hover:bg-blue-900/50 transition-all font-semibold whitespace-nowrap"
+            >
+              Replay Tour
+            </button>
+          </div>
+        </div>
         <div className="mb-8">
           <div className="flex flex-wrap gap-2">
             <button

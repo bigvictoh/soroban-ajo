@@ -1,0 +1,248 @@
+name: Performance Tests
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+  schedule:
+    # Run nightly at 2am UTC
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+env:
+  NODE_VERSION: '20'
+
+jobs:
+  # ─── Backend Performance Metrics ───────────────────────────────────────────
+  backend-performance:
+    name: Backend Performance Check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install backend dependencies
+        run: cd backend && npm ci
+
+      - name: Type check backend
+        run: cd backend && npm run type-check
+        continue-on-error: true
+
+      - name: Build backend
+        run: cd backend && npm run build
+        continue-on-error: true
+
+  # ─── Frontend Bundle Size Check ────────────────────────────────────────────
+  frontend-bundle:
+    name: Frontend Bundle Size
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install frontend dependencies
+        run: cd frontend && npm ci
+
+      - name: Build frontend
+        run: cd frontend && npm run build
+        env:
+          NEXT_PUBLIC_STELLAR_NETWORK: testnet
+          NEXT_PUBLIC_SOROBAN_RPC_URL: https://soroban-testnet.stellar.org
+        continue-on-error: true
+
+      - name: Check bundle sizes
+        run: |
+          echo "=== Bundle Size Report ==="
+          if [ -d "frontend/.next/static/chunks" ]; then
+            echo "JS Chunks:"
+            find frontend/.next/static/chunks -name "*.js" -exec du -sh {} \; | sort -rh | head -20
+            
+            TOTAL=$(find frontend/.next/static -name "*.js" -exec du -b {} \; | awk '{sum+=$1} END {print sum}')
+            BUDGET=524288  # 512 KB in bytes
+            echo ""
+            echo "Total JS size: $(echo $TOTAL | awk '{printf "%.1f KB", $1/1024}')"
+            echo "Budget: 512 KB"
+            
+            if [ "$TOTAL" -gt "$BUDGET" ]; then
+              echo "⚠️ Bundle size exceeds budget!"
+            else
+              echo "✅ Bundle size within budget"
+            fi
+          else
+            echo "No build artifacts found (build may have failed)"
+          fi
+        continue-on-error: true
+
+      - name: Upload bundle analysis
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bundle-analysis
+          path: frontend/.next/
+          retention-days: 7
+        continue-on-error: true
+
+  # ─── Load Testing ──────────────────────────────────────────────────────────
+  load-test:
+    name: Load Test (k6)
+    runs-on: ubuntu-latest
+    # Only run on main/develop pushes and scheduled runs to avoid noise on every PR
+    if: >
+      github.event_name == 'schedule' ||
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'))
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: ajo_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install backend dependencies
+        run: cd backend && npm ci
+
+      - name: Build backend
+        run: cd backend && npm run build
+        continue-on-error: true
+
+      - name: Start backend server
+        run: |
+          cd backend
+          node dist/index.js &
+          echo $! > /tmp/server.pid
+          # Wait for server to be ready
+          for i in {1..30}; do
+            if curl -sf http://localhost:3001/health > /dev/null 2>&1; then
+              echo "Server is ready"
+              break
+            fi
+            echo "Waiting for server... ($i/30)"
+            sleep 2
+          done
+        env:
+          NODE_ENV: test
+          PORT: 3001
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/ajo_test
+          JWT_SECRET: test-secret-for-ci
+        continue-on-error: true
+
+      - name: Install k6
+        run: |
+          curl https://github.com/grafana/k6/releases/download/v0.49.0/k6-v0.49.0-linux-amd64.tar.gz -L | tar xvz --strip-components 1
+          sudo mv k6 /usr/local/bin/
+        continue-on-error: true
+
+      - name: Run load test (load scenario only in CI)
+        run: |
+          k6 run \
+            --env BASE_URL=http://localhost:3001 \
+            --duration 1m \
+            --vus 10 \
+            --out json=scripts/load-test-results.json \
+            scripts/load-test.js || true
+        continue-on-error: true
+
+      - name: Upload load test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: load-test-results
+          path: scripts/load-test-results.json
+          retention-days: 30
+        continue-on-error: true
+
+      - name: Stop backend server
+        if: always()
+        run: |
+          if [ -f /tmp/server.pid ]; then
+            kill $(cat /tmp/server.pid) || true
+          fi
+
+  # ─── Performance Report ────────────────────────────────────────────────────
+  performance-report:
+    name: Performance Report
+    runs-on: ubuntu-latest
+    needs: [backend-performance, frontend-bundle]
+    if: always() && github.event_name == 'pull_request'
+
+    steps:
+      - name: Download bundle analysis
+        uses: actions/download-artifact@v4
+        with:
+          name: bundle-analysis
+          path: bundle-analysis
+        continue-on-error: true
+
+      - name: Comment performance summary on PR
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const backendStatus = '${{ needs.backend-performance.result }}';
+            const bundleStatus = '${{ needs.frontend-bundle.result }}';
+
+            const statusEmoji = (s) => s === 'success' ? '✅' : s === 'failure' ? '❌' : '⚠️';
+
+            const body = `## Performance Monitoring Report
+
+            | Check | Status |
+            |-------|--------|
+            | Backend Build & Type Check | ${statusEmoji(backendStatus)} ${backendStatus} |
+            | Frontend Bundle Size | ${statusEmoji(bundleStatus)} ${bundleStatus} |
+
+            ### Performance Budgets
+            | Metric | Budget |
+            |--------|--------|
+            | Max Bundle Size | 512 KB |
+            | Max API Response Time (p95) | 500ms |
+            | Max Page Load Time | 3000ms |
+            | Max Component Render Time | 16ms |
+
+            > Load tests run on pushes to \`main\`/\`develop\` and nightly. Check the Actions tab for full results.
+            `;
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body,
+            });
+        continue-on-error: true

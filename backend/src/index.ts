@@ -21,6 +21,11 @@ import { chatService } from './services/chatService'
 
 dotenv.config()
 
+// Init Sentry before anything else
+initSentry()
+// Init DataDog APM (no-op if DD_API_KEY not set)
+initDatadog()
+
 const app = express()
 initSentry(app)
 const PORT = process.env.PORT || 3001
@@ -59,6 +64,9 @@ app.use('/api/auth', strictLimiter, authRouter)
 app.use('/api/groups', groupsRouter)
 app.use('/api/webhooks', strictLimiter, webhooksRouter)
 app.use('/jobs', jobsRouter)
+
+// Sentry error handler (must be before custom error handler)
+app.use(Sentry.expressErrorHandler())
 
 // Error handling
 Sentry.setupExpressErrorHandler(app)

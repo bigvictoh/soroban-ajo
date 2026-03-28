@@ -16,6 +16,25 @@ function OnboardingInitializer() {
 }
 
 export function Providers({ children }: { children: React.ReactNode }) {
+  useEffect(() => {
+    // Init third-party monitoring tools
+    initSentryClient()
+    initGoogleAnalytics()
+
+    // Observe Core Web Vitals — forward to GA4 as well
+    observeWebVitals((metric) => {
+      trackWebVital(metric.name, metric.value, metric.rating)
+    })
+
+    observeResourceTiming()
+
+    if (document.readyState === 'complete') {
+      measurePageLoad()
+    } else {
+      window.addEventListener('load', measurePageLoad, { once: true })
+    }
+  }, [])
+
   const [queryClient] = useState(
     () =>
       new QueryClient({
