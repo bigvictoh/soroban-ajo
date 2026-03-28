@@ -12,6 +12,7 @@ const TablePagination: React.FC<any> = ({
 }) => null
 import { TransactionFilters, TransactionSort, TransactionSortField } from '../types'
 import { useTransactions } from '../hooks/useContractData'
+import { NoTransactions } from './empty/NoTransactions'
 import { useTheme } from '@/context/ThemeContext'
 
 interface Transaction {
@@ -283,7 +284,7 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({ groupId 
                   className="px-4 py-8 text-center"
                   style={{ color: 'var(--color-text-muted)' }}
                 >
-                  No transactions found matching your filters
+                  <NoTransactions />
                 </td>
               </tr>
             ) : (

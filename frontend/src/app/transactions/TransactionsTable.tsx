@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { ArrowUp, ArrowDown, ArrowUpDown, ExternalLink } from 'lucide-react';
+import { NoTransactions } from '@/components/empty/NoTransactions';
 import type { TxRow } from '@/hooks/useTransactionHistory';
 import type { TxSort } from '@/hooks/useTransactionHistory';
 
@@ -133,7 +134,7 @@ export function TransactionsTable({ rows, sort, onSort, onRowClick, isLoading }:
             ) : rows.length === 0 ? (
               <tr>
                 <td colSpan={7} className="px-4 py-16 text-center text-gray-400 dark:text-slate-500">
-                  No transactions match your filters
+                  <NoTransactions />
                 </td>
               </tr>
             ) : (

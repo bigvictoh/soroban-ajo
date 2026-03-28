@@ -13,6 +13,7 @@ import { GamificationDashboard } from '@/components/GamificationDashboard'
 import { GroupsGrid } from '@/components/GroupsGrid'
 import { GroupsList } from '@/components/GroupsList'
 import { UserGroupsDashboard } from '@/components/UserGroupsDashboard'
+import { NoGroups } from '@/components/empty/NoGroups'
 import { useAuth } from '@/hooks/useAuth'
 
 export default function Dashboard() {
@@ -44,32 +45,7 @@ export default function Dashboard() {
     // TODO: Implement join group logic
   }
 
-  const EmptyState = () => (
-    <div className="animate-fade-in-up text-center py-20 px-6 bg-white dark:bg-slate-800 rounded-2xl border border-surface-200/80 dark:border-slate-700">
-      <div className="empty-state-icon mb-6 animate-float">
-        <svg className="h-10 w-10 text-primary-500 dark:text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-        </svg>
-      </div>
-      <h3 className="text-xl font-bold text-surface-900 dark:text-slate-100 mb-2">No groups found</h3>
-      <p className="text-sm text-surface-500 dark:text-slate-400 max-w-sm mx-auto leading-relaxed">
-        {searchQuery || filterStatus !== 'all'
-          ? 'Try adjusting your filters or search query'
-          : 'Get started by creating or joining a savings group'}
-      </p>
-      {!searchQuery && filterStatus === 'all' && (
-        <button
-          onClick={() => router.push('/groups/create')}
-          className="btn-primary mt-8 px-6 py-3 text-sm"
-        >
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-          </svg>
-          Create Your First Group
-        </button>
-      )}
-    </div>
-  )
+
 
   return (
     <div className="min-h-screen">
@@ -191,7 +167,7 @@ export default function Dashboard() {
         {/* Content Area — unchanged */}
         <div className="animate-fade-in-up" style={{ animationDelay: '200ms' }}>
           {!isLoading && (groups ?? []).length === 0 ? (
-            <EmptyState />
+            <NoGroups onCreateGroup={() => router.push('/groups/create')} />
           ) : viewMode === 'grid' ? (
             <GroupsGrid
               groups={groups ?? []}

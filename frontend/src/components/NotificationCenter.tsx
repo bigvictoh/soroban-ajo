@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react'
 import { Bell, Trash2, CheckCheck, Wifi, WifiOff, RefreshCw } from 'lucide-react'
 import { useNotifications } from '@/hooks/useNotifications'
 import { useWebSocket } from '@/hooks/useWebSocket'
+import { NoNotifications } from './empty/NoNotifications'
 import NotificationItem from './NotificationItem'
 
 export default function NotificationCenter() {
@@ -160,17 +161,7 @@ export default function NotificationCenter() {
         {/* Notifications List */}
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
           {filteredNotifications.length === 0 ? (
-            <div className="p-12 text-center">
-              <Bell className="w-16 h-16 text-gray-300 dark:text-gray-700 mx-auto mb-4" />
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-                {filter === 'unread' ? 'No unread notifications' : 'No notifications yet'}
-              </h3>
-              <p className="text-gray-600 dark:text-gray-400">
-                {filter === 'unread'
-                  ? 'All caught up! Check back later for updates.'
-                  : 'When you receive notifications, they will appear here.'}
-              </p>
-            </div>
+            <NoNotifications />
           ) : (
             <div>
               {filteredNotifications.map((notification) => (

@@ -4,6 +4,7 @@
 
 import React from 'react'
 import { useGroupMembers } from '../hooks/useContractData'
+import { NoMembers } from './empty/NoMembers'
 import { generateAvatarColor, getAddressInitials, shortenAddress, formatDate } from '../utils/avatarUtils'
 
 interface Member {
@@ -114,9 +115,10 @@ export const MemberList: React.FC<MemberListProps> = ({ groupId }) => {
         </table>
 
         {members.length === 0 && (
-          <div className="text-center py-8 text-gray-500">
-            No members found in this group.
-          </div>
+          <NoMembers onInvite={() => {
+            navigator.clipboard.writeText(window.location.href);
+            alert('Invite link copied to clipboard!');
+          }} />
         )}
       </div>
     </div>
