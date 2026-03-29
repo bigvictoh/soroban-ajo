@@ -648,3 +648,19 @@ model ChatParticipant {
   @@index([roomId])
   @@index([userId])
 }
+
+model EventStore {
+  id            String   @id @default(cuid())
+  sequenceNumber Int     @default(autoincrement())
+  type          String
+  aggregateId   String
+  aggregateType String
+  payload       Json
+  metadata      Json
+  version       Int
+  createdAt     DateTime @default(now())
+
+  @@index([aggregateId])
+  @@index([type])
+  @@index([sequenceNumber])
+}

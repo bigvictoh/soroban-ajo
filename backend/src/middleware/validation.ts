@@ -119,3 +119,6 @@ export function safeParse<T>(schema: ZodSchema<T>, data: unknown):
     | { success: true; data: T }
     | { success: false; error: ZodError }
 }
+
+// Re-export chain utilities for convenience
+export { createValidationChain, schemaValidator } from '../utils/validationChain'
