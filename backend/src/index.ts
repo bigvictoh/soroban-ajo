@@ -28,6 +28,7 @@ import { startJobProcessors } from './jobs'
 import { chatService } from './services/chatService'
 import { stopScheduler } from './cron/scheduler'
 import { stopWorkers } from './jobs/jobWorkers'
+import { healthMonitor } from './monitoring/healthMonitor'
 
 dotenv.config()
 
@@ -94,6 +95,9 @@ startJobProcessors()
 import { blockchainListener } from './services/blockchainListener'
 blockchainListener.start()
 
+// Start service health monitoring
+healthMonitor.start()
+
 // Start server
 app.listen(PORT, () => {
   logger.info(`Server started on port ${PORT}`, { env: process.env.NODE_ENV || 'development' })
@@ -114,6 +118,7 @@ const shutdown = async () => {
   }
 
   blockchainListener.stop()
+  healthMonitor.stop()
   stopScheduler()
   await stopWorkers()
   setTimeout(() => process.exit(0), 100)
