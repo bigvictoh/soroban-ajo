@@ -3,8 +3,18 @@ import { authMiddleware, AuthRequest } from '../middleware/auth'
 import { notificationService } from '../services/notificationService'
 import { prisma } from '../config/database'
 import { logger } from '../utils/logger'
+import webpush from 'web-push'
 
 export const notificationsRouter = Router()
+
+// Configure VAPID keys if provided
+if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
+  webpush.setVapidDetails(
+    `mailto:${process.env.EMAIL_FROM || 'noreply@ajo.app'}`,
+    process.env.VAPID_PUBLIC_KEY,
+    process.env.VAPID_PRIVATE_KEY
+  )
+}
 
 // All routes require authentication
 notificationsRouter.use(authMiddleware)
@@ -74,4 +84,47 @@ notificationsRouter.get('/status', (req: AuthRequest, res: Response) => {
     success: true,
     data: { online: notificationService.isUserOnline(userId) },
   })
+})
+
+/**
+ * POST /api/notifications/push/subscribe
+ * Saves a Web Push subscription for the authenticated user.
+ */
+notificationsRouter.post('/push/subscribe', async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user!.walletAddress!
+    const subscription = req.body as { endpoint: string; keys: { p256dh: string; auth: string } }
+
+    if (!subscription?.endpoint || !subscription?.keys?.p256dh || !subscription?.keys?.auth) {
+      return res.status(400).json({ success: false, error: 'Invalid push subscription' })
+    }
+
+    await prisma.pushSubscription.upsert({
+      where: { endpoint: subscription.endpoint },
+      create: { userId, endpoint: subscription.endpoint, p256dh: subscription.keys.p256dh, auth: subscription.keys.auth },
+      update: { userId, p256dh: subscription.keys.p256dh, auth: subscription.keys.auth },
+    })
+
+    res.json({ success: true })
+  } catch (err) {
+    logger.error('Error saving push subscription:', err)
+    res.status(500).json({ success: false, error: 'Failed to save subscription' })
+  }
+})
+
+/**
+ * DELETE /api/notifications/push/subscribe
+ * Removes a Web Push subscription for the authenticated user.
+ */
+notificationsRouter.delete('/push/subscribe', async (req: AuthRequest, res: Response) => {
+  try {
+    const { endpoint } = req.body as { endpoint: string }
+    if (!endpoint) return res.status(400).json({ success: false, error: 'endpoint required' })
+
+    await prisma.pushSubscription.deleteMany({ where: { endpoint } })
+    res.json({ success: true })
+  } catch (err) {
+    logger.error('Error removing push subscription:', err)
+    res.status(500).json({ success: false, error: 'Failed to remove subscription' })
+  }
 })

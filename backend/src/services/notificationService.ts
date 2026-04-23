@@ -1,6 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { prisma } from '../config/database'
 import { logger } from '../utils/logger'
+import { emailService } from './emailService'
+import webpush from 'web-push'
 
 export type NotificationType =
   | 'contribution_due'
@@ -103,7 +105,8 @@ class NotificationService {
    * Sends a targeted notification to a specific user.
    * If the user is currently offline (no active sockets), the notification is queued
    * and will be delivered upon their next connection.
-   * 
+   * Also sends an email for high-priority event types when the user has an email on file.
+   *
    * @param userId - The ID of the recipient user
    * @param payload - The notification content (type, title, message, etc.)
    * @returns The created notification object with ID and timestamp
@@ -133,7 +136,80 @@ class NotificationService {
       logger.info(`Notification queued for offline user ${userId}: ${notification.type}`)
     }
 
+    // Send email for high-priority events
+    this.sendEmailForEvent(userId, notification).catch((err) =>
+      logger.error('Email notification error', { err, userId, type: notification.type })
+    )
+
+    // Send Web Push notification
+    this.sendPushForEvent(userId, notification).catch((err) =>
+      logger.error('Push notification error', { err, userId, type: notification.type })
+    )
+
     return notification
+  }
+
+  private async sendPushForEvent(userId: string, notification: NotificationPayload): Promise<void> {
+    if (!process.env.VAPID_PUBLIC_KEY || !process.env.VAPID_PRIVATE_KEY) return
+
+    const subscriptions = await prisma.pushSubscription.findMany({ where: { userId } })
+    if (!subscriptions.length) return
+
+    const payload = JSON.stringify({ title: notification.title, body: notification.message, tag: notification.id })
+
+    await Promise.allSettled(
+      subscriptions.map((sub: { endpoint: string; p256dh: string; auth: string; id: string }) =>
+        webpush
+          .sendNotification({ endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } }, payload)
+          .catch(async (err: any) => {
+            // 410 Gone = subscription expired, clean it up
+            if (err.statusCode === 410) {
+              await prisma.pushSubscription.delete({ where: { id: sub.id } })
+            }
+          })
+      )
+    )
+  }
+
+  private async sendEmailForEvent(userId: string, notification: NotificationPayload): Promise<void> {
+    const EMAIL_TYPES: NotificationType[] = ['contribution_received', 'payout_received', 'contribution_due', 'contribution_overdue']
+    if (!EMAIL_TYPES.includes(notification.type)) return
+
+    const user = await prisma.user.findUnique({ where: { walletAddress: userId }, select: { email: true, name: true } })
+    if (!user?.email) return
+
+    const name = user.name ?? userId
+    const groupId = notification.groupId ?? ''
+
+    if (notification.type === 'payout_received') {
+      const amountMatch = notification.message.match(/[\d,]+/)
+      await emailService.sendPayoutNotification(
+        user.email,
+        notification.metadata?.groupName as string ?? groupId,
+        amountMatch?.[0] ?? '0',
+        notification.metadata?.txHash as string ?? '',
+        notification.metadata?.cycleNumber as number ?? 0,
+        new Date().toLocaleDateString()
+      )
+    } else if (notification.type === 'contribution_received') {
+      await emailService.sendTransactionReceipt(user.email, {
+        groupName: notification.metadata?.groupName as string ?? groupId,
+        amount: notification.metadata?.amount as string ?? '0',
+        txHash: notification.metadata?.txHash as string ?? '',
+        date: new Date().toLocaleDateString(),
+        cycleNumber: notification.metadata?.cycleNumber as number ?? 0,
+      })
+    } else if (notification.type === 'contribution_due' || notification.type === 'contribution_overdue') {
+      const hoursMatch = notification.message.match(/\d+/)
+      await emailService.sendContributionReminder(
+        user.email,
+        notification.metadata?.groupName as string ?? groupId,
+        notification.metadata?.amount as string ?? '0',
+        notification.metadata?.dueDate as string ?? new Date().toLocaleDateString(),
+        notification.metadata?.cycleNumber as number ?? 0,
+        groupId
+      )
+    }
   }
 
   /**

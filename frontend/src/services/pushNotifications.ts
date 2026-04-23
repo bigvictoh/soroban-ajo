@@ -60,7 +60,8 @@ export async function requestNotificationPermission(): Promise<NotificationPermi
 
 /**
  * Subscribe the current user to push notifications via the service worker.
- * 
+ * Registers the subscription with the backend API.
+ *
  * @returns The PushSubscription object or null if failed
  */
 export async function subscribeToPushNotifications(): Promise<PushSubscription | null> {
@@ -77,6 +78,15 @@ export async function subscribeToPushNotifications(): Promise<PushSubscription |
       userVisibleOnly: true,
       applicationServerKey: VAPID_PUBLIC_KEY ? (urlBase64ToUint8Array(VAPID_PUBLIC_KEY) as any) : undefined,
     });
+
+    // Register with backend
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+    await fetch(`${apiUrl}/api/notifications/push/subscribe`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify(subscription.toJSON()),
+    }).catch(() => {/* non-fatal */});
 
     return subscription;
   } catch (error) {

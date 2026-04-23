@@ -10,6 +10,8 @@ datasource db {
 model User {
   id                 String    @id @default(cuid())
   walletAddress      String    @unique
+  email              String?
+  name               String?
   twoFactorEnabled   Boolean   @default(false)
   twoFactorSecret    String?
   twoFactorEnabledAt DateTime?
@@ -29,6 +31,9 @@ model User {
   rewardHistory     RewardHistory[]
   chatMessages      ChatMessage[]
   chatParticipants  ChatParticipant[]
+  pushSubscriptions PushSubscription[]
+  verification      Verification?
+  savedSearches     SavedSearch[]
 
   // Goal Management
   goals           Goal[]       @relation("UserGoals")
@@ -663,4 +668,83 @@ model EventStore {
   @@index([aggregateId])
   @@index([type])
   @@index([sequenceNumber])
+}
+
+model PushSubscription {
+  id        String   @id @default(cuid())
+  userId    String
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [walletAddress], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+// ── Advanced Search (Issue #597) ──────────────────────────────────────────
+
+model SavedSearch {
+  id        String   @id @default(cuid())
+  userId    String
+  name      String
+  entity    String   // groups | members | transactions
+  filters   Json     // serialised SearchFilters
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [walletAddress], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+// ── Member Verification (Issue #589) ──────────────────────────────────────
+
+model Verification {
+  id              String    @id @default(cuid())
+  userId          String    @unique
+  // KYC level: 0=none, 1=email, 2=phone+email, 3=identity docs
+  kycLevel        Int       @default(0)
+  kycStatus       String    @default("none") // none | pending | approved | rejected
+  kycRequestedAt  DateTime?
+  kycVerifiedAt   DateTime?
+  kycRejectedAt   DateTime?
+  kycNotes        String?
+  // Email verification
+  emailVerified   Boolean   @default(false)
+  emailOtp        String?
+  emailOtpExpiry  DateTime?
+  // Phone verification
+  phone           String?
+  phoneVerified   Boolean   @default(false)
+  phoneOtp        String?
+  phoneOtpExpiry  DateTime?
+  // Trust score (0-100)
+  trustScore      Int       @default(0)
+  trustUpdatedAt  DateTime  @default(now())
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user      User              @relation(fields: [userId], references: [walletAddress], onDelete: Cascade)
+  documents VerificationDoc[]
+
+  @@index([kycStatus])
+  @@index([trustScore])
+}
+
+model VerificationDoc {
+  id             String   @id @default(cuid())
+  verificationId String
+  docType        String   // passport | national_id | drivers_license | utility_bill | selfie
+  fileName       String
+  mimeType       String
+  sizeBytes      Int
+  storageKey     String   // S3 key or local path
+  status         String   @default("pending") // pending | approved | rejected
+  createdAt      DateTime @default(now())
+
+  verification Verification @relation(fields: [verificationId], references: [id], onDelete: Cascade)
+
+  @@index([verificationId])
 }
