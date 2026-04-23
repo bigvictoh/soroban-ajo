@@ -264,3 +264,75 @@ pub fn emit_dispute_resolved(
     let topics = (symbol_short!("disres"), dispute_id);
     env.events().publish(topics, (group_id, resolution));
 }
+
+/// Emit an event when a loan is requested
+pub fn emit_loan_requested(env: &Env, loan_id: u64, group_id: u64, borrower: &Address, amount: i128) {
+    let topics = (symbol_short!("loanreq"), loan_id);
+    env.events().publish(topics, (group_id, borrower, amount));
+}
+
+/// Emit an event when a vote is cast on a loan
+pub fn emit_loan_vote(env: &Env, loan_id: u64, voter: &Address, in_favor: bool) {
+    let topics = (symbol_short!("loanvot"), loan_id);
+    env.events().publish(topics, (voter, in_favor));
+}
+
+/// Emit an event when a loan is approved and disbursed
+pub fn emit_loan_disbursed(env: &Env, loan_id: u64, group_id: u64, borrower: &Address, amount: i128) {
+    let topics = (symbol_short!("loandis"), loan_id);
+    env.events().publish(topics, (group_id, borrower, amount));
+}
+
+/// Emit an event when a loan repayment is made
+pub fn emit_loan_repayment(env: &Env, loan_id: u64, borrower: &Address, amount: i128) {
+    let topics = (symbol_short!("loanrep"), loan_id);
+    env.events().publish(topics, (borrower, amount));
+}
+
+/// Emit an event when an emergency request is filed
+pub fn emit_emergency_requested(env: &Env, req_id: u64, group_id: u64, requester: &Address, amount: i128) {
+    let topics = (symbol_short!("emergreq"), req_id);
+    env.events().publish(topics, (group_id, requester, amount));
+}
+
+/// Emit an event when a vote is cast on an emergency request
+pub fn emit_emergency_vote(env: &Env, req_id: u64, voter: &Address, in_favor: bool) {
+    let topics = (symbol_short!("emergvot"), req_id);
+    env.events().publish(topics, (voter, in_favor));
+}
+
+/// Emit an event when an emergency request is disbursed
+pub fn emit_emergency_disbursed(env: &Env, req_id: u64, group_id: u64, requester: &Address, amount: i128) {
+    let topics = (symbol_short!("emergdis"), req_id);
+    env.events().publish(topics, (group_id, requester, amount));
+}
+
+/// Emit an event when an emergency repayment is made
+pub fn emit_emergency_repayment(env: &Env, req_id: u64, requester: &Address, amount: i128) {
+    let topics = (symbol_short!("emergrep"), req_id);
+    env.events().publish(topics, (requester, amount));
+}
+
+/// Emit an event when an insurance claim is filed
+pub fn emit_claim_filed(env: &Env, claim_id: u64, group_id: u64, cycle: u32) {
+    let topics = (symbol_short!("clmfiled"), claim_id);
+    env.events().publish(topics, (group_id, cycle));
+}
+
+/// Emit an event when an insurance claim is approved and paid
+pub fn emit_claim_approved(env: &Env, claim_id: u64, group_id: u64, claimant: &Address, amount: i128) {
+    let topics = (symbol_short!("clmapprv"), claim_id);
+    env.events().publish(topics, (group_id, claimant, amount));
+}
+
+/// Emit an event when an insurance claim is rejected
+pub fn emit_claim_rejected(env: &Env, claim_id: u64, group_id: u64) {
+    let topics = (symbol_short!("clmrejct"), claim_id);
+    env.events().publish(topics, group_id);
+}
+
+/// Emit an event when a claim verification result is determined
+pub fn emit_claim_verification_result(env: &Env, claim_id: u64, group_id: u64, decided: bool, is_valid: bool) {
+    let topics = (symbol_short!("clmverif"), claim_id);
+    env.events().publish(topics, (group_id, decided, is_valid));
+}

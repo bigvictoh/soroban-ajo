@@ -2557,4 +2557,111 @@ pub fn get_refund_record(
         templates.push_back(crate::types::GroupTemplate::Custom);
         templates
     }
+
+    // ── Loan System ───────────────────────────────────────────────────────
+
+    /// Request a loan from the group pool.
+    pub fn request_loan(
+        env: Env,
+        group_id: u64,
+        borrower: Address,
+        amount: i128,
+        interest_rate_bps: u32,
+        repayment_period: u64,
+    ) -> Result<u64, AjoError> {
+        pausable::ensure_not_paused(&env)?;
+        crate::loan::request_loan(&env, group_id, borrower, amount, interest_rate_bps, repayment_period)
+    }
+
+    /// Vote on a loan request.
+    pub fn vote_on_loan(
+        env: Env,
+        loan_id: u64,
+        voter: Address,
+        in_favor: bool,
+    ) -> Result<(), AjoError> {
+        pausable::ensure_not_paused(&env)?;
+        crate::loan::vote_on_loan(&env, loan_id, voter, in_favor)
+    }
+
+    /// Disburse an approved loan.
+    pub fn disburse_loan(env: Env, loan_id: u64) -> Result<(), AjoError> {
+        pausable::ensure_not_paused(&env)?;
+        crate::loan::disburse_loan(&env, loan_id)
+    }
+
+    /// Repay a loan (partial or full).
+    pub fn repay_loan(
+        env: Env,
+        loan_id: u64,
+        borrower: Address,
+        amount: i128,
+    ) -> Result<(), AjoError> {
+        pausable::ensure_not_paused(&env)?;
+        crate::loan::repay_loan(&env, loan_id, borrower, amount)
+    }
+
+    /// Get a loan request by ID.
+    pub fn get_loan(env: Env, loan_id: u64) -> Result<crate::types::LoanRequest, AjoError> {
+        crate::loan::get_loan(&env, loan_id)
+    }
+
+    /// Get all loan IDs for a group.
+    pub fn get_group_loans(env: Env, group_id: u64) -> Vec<u64> {
+        crate::loan::get_group_loans(&env, group_id)
+    }
+
+    // ── Emergency Fund ────────────────────────────────────────────────────
+
+    /// Request an emergency withdrawal from the group pool.
+    pub fn request_emergency(
+        env: Env,
+        group_id: u64,
+        requester: Address,
+        amount: i128,
+        reason: soroban_sdk::String,
+        repay_period: u64,
+    ) -> Result<u64, AjoError> {
+        pausable::ensure_not_paused(&env)?;
+        crate::emergency::request_emergency(&env, group_id, requester, amount, reason, repay_period)
+    }
+
+    /// Vote on an emergency request.
+    pub fn vote_on_emergency(
+        env: Env,
+        req_id: u64,
+        voter: Address,
+        in_favor: bool,
+    ) -> Result<(), AjoError> {
+        pausable::ensure_not_paused(&env)?;
+        crate::emergency::vote_on_emergency(&env, req_id, voter, in_favor)
+    }
+
+    /// Disburse an approved emergency request.
+    pub fn disburse_emergency(env: Env, req_id: u64, repay_period: u64) -> Result<(), AjoError> {
+        pausable::ensure_not_paused(&env)?;
+        crate::emergency::disburse_emergency(&env, req_id, repay_period)
+    }
+
+    /// Repay an emergency withdrawal.
+    pub fn repay_emergency(
+        env: Env,
+        req_id: u64,
+        requester: Address,
+        amount: i128,
+    ) -> Result<(), AjoError> {
+        pausable::ensure_not_paused(&env)?;
+        crate::emergency::repay_emergency(&env, req_id, requester, amount)
+    }
+
+    /// Get an emergency request by ID.
+    pub fn get_emergency_request(env: Env, req_id: u64) -> Result<crate::types::EmergencyRequest, AjoError> {
+        crate::emergency::get_emergency_request(&env, req_id)
+    }
+
+    /// Get all emergency request IDs for a group.
+    pub fn get_group_emergencies(env: Env, group_id: u64) -> Vec<u64> {
+        crate::emergency::get_group_emergencies(&env, group_id)
+    }
 }
+

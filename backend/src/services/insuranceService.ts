@@ -161,3 +161,5 @@ export class InsuranceService {
     }
   }
 }
+
+export const insuranceService = new InsuranceService()

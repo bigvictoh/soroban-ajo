@@ -1,4 +1,4 @@
-use soroban_sdk::{contracttype, Address, Vec};
+use soroban_sdk::{contracttype, Address, BytesN, Vec};
 
 /// Strategy for determining payout order in a group.
 #[contracttype]
@@ -379,12 +379,6 @@ pub enum RefundReason {
     DisputeRefund = 3,
 }
 
-/// Voting period duration in seconds (7 days).
-pub const VOTING_PERIOD: u64 = 604_800;
-
-/// Minimum approval percentage required for refund (51%).
-pub const REFUND_APPROVAL_THRESHOLD: u32 = 51;
-
 /// Detailed record of a member's contribution for a specific cycle.
 #[contracttype]
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -709,3 +703,107 @@ pub struct TemplateConfig {
     /// Suggested maximum number of members.
     pub suggested_max_members: u32,
 }
+
+// ── Loan System ───────────────────────────────────────────────────────────
+
+/// Status of a loan request.
+#[contracttype]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, PartialOrd, Ord)]
+#[repr(u32)]
+pub enum LoanStatus {
+    Pending = 0,
+    Approved = 1,
+    Rejected = 2,
+    Active = 3,
+    Repaid = 4,
+    Defaulted = 5,
+}
+
+/// A loan request from a group member.
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct LoanRequest {
+    pub id: u64,
+    pub group_id: u64,
+    pub borrower: Address,
+    pub amount: i128,
+    /// Annual interest rate in basis points (e.g. 500 = 5%).
+    pub interest_rate_bps: u32,
+    /// Repayment duration in seconds.
+    pub repayment_period: u64,
+    pub status: LoanStatus,
+    pub votes_for: u32,
+    pub votes_against: u32,
+    pub voting_deadline: u64,
+    pub created_at: u64,
+    /// Timestamp when loan was disbursed (0 if not yet).
+    pub disbursed_at: u64,
+    /// Total amount repaid so far.
+    pub amount_repaid: i128,
+    /// Due timestamp for full repayment.
+    pub due_at: u64,
+}
+
+/// Records a vote on a loan request.
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct LoanVote {
+    pub loan_id: u64,
+    pub voter: Address,
+    pub in_favor: bool,
+    pub timestamp: u64,
+}
+
+// ── Emergency Fund ────────────────────────────────────────────────────────
+
+/// Status of an emergency fund request.
+#[contracttype]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, PartialOrd, Ord)]
+#[repr(u32)]
+pub enum EmergencyStatus {
+    Pending = 0,
+    Approved = 1,
+    Rejected = 2,
+    Disbursed = 3,
+    Repaid = 4,
+}
+
+/// An emergency withdrawal request from a group member.
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct EmergencyRequest {
+    pub id: u64,
+    pub group_id: u64,
+    pub requester: Address,
+    pub amount: i128,
+    pub reason: soroban_sdk::String,
+    pub status: EmergencyStatus,
+    pub votes_for: u32,
+    pub votes_against: u32,
+    /// Shorter voting deadline for fast approval (e.g. 24h).
+    pub voting_deadline: u64,
+    pub created_at: u64,
+    pub disbursed_at: u64,
+    pub amount_repaid: i128,
+    /// Repayment due date.
+    pub repay_by: u64,
+}
+
+/// Records a vote on an emergency request.
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct EmergencyVote {
+    pub request_id: u64,
+    pub voter: Address,
+    pub in_favor: bool,
+    pub timestamp: u64,
+}
+
+/// Approval threshold for loans (51%).
+pub const LOAN_APPROVAL_THRESHOLD: u32 = 51;
+/// Approval threshold for emergency requests (51%).
+pub const EMERGENCY_APPROVAL_THRESHOLD: u32 = 51;
+/// Fast voting window for emergency requests (24 hours).
+pub const EMERGENCY_VOTING_PERIOD: u64 = 86_400;
+/// Standard voting window for loans (7 days).
+pub const LOAN_VOTING_PERIOD: u64 = 604_800;
