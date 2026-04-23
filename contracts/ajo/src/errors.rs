@@ -178,29 +178,12 @@ pub enum AjoError {
     /// The caller is not a member of the dispute's group.
     NotDisputeMember = 56,
 
-    // ── Loan errors ───────────────────────────────────────────────────────
+    // ── Reputation errors ─────────────────────────────────────────────────
 
-    /// Loan request not found.
-    LoanNotFound = 57,
+    /// No reputation record found for this member.
+    ReputationNotFound = 57,
 
-    /// Loan has already been processed.
-    LoanAlreadyProcessed = 58,
-
-    /// Loan is not in active state for repayment.
-    LoanNotActive = 59,
-
-    /// Repayment amount exceeds outstanding balance.
-    RepaymentExceedsBalance = 60,
-
-    // ── Emergency fund errors ─────────────────────────────────────────────
-
-    /// Emergency request not found.
-    EmergencyRequestNotFound = 61,
-
-    /// Emergency request has already been processed.
-    EmergencyAlreadyProcessed = 62,
-
-    /// Emergency request is not in disbursed state for repayment.
-    EmergencyNotDisbursed = 63,
+    /// Member's credit score is below the group's minimum requirement.
+    InsufficientCreditScore = 58,
 }
 

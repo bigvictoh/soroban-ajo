@@ -704,106 +704,127 @@ pub struct TemplateConfig {
     pub suggested_max_members: u32,
 }
 
-// ── Loan System ───────────────────────────────────────────────────────────
+// ── Reputation system ─────────────────────────────────────────────────────
 
-/// Status of a loan request.
+/// Reputation tier derived from a member's credit score.
+///
+/// Tiers are used for access control (e.g. InviteOnly groups can require
+/// a minimum tier) and for UI display purposes.
 #[contracttype]
 #[derive(Clone, Copy, Debug, Eq, PartialEq, PartialOrd, Ord)]
 #[repr(u32)]
-pub enum LoanStatus {
-    Pending = 0,
-    Approved = 1,
-    Rejected = 2,
-    Active = 3,
-    Repaid = 4,
-    Defaulted = 5,
+pub enum ReputationTier {
+    /// No contribution history yet (score 0–199).
+    Unrated = 0,
+    /// Beginner member with limited history (score 200–399).
+    Bronze = 1,
+    /// Established member with decent track record (score 400–599).
+    Silver = 2,
+    /// Reliable member with strong history (score 600–799).
+    Gold = 3,
+    /// Highly trusted member (score 800–899).
+    Platinum = 4,
+    /// Elite member with near-perfect record (score 900–1000).
+    Diamond = 5,
 }
 
-/// A loan request from a group member.
+/// Reason a credit score snapshot was recorded.
 #[contracttype]
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct LoanRequest {
-    pub id: u64,
-    pub group_id: u64,
-    pub borrower: Address,
-    pub amount: i128,
-    /// Annual interest rate in basis points (e.g. 500 = 5%).
-    pub interest_rate_bps: u32,
-    /// Repayment duration in seconds.
-    pub repayment_period: u64,
-    pub status: LoanStatus,
-    pub votes_for: u32,
-    pub votes_against: u32,
-    pub voting_deadline: u64,
-    pub created_at: u64,
-    /// Timestamp when loan was disbursed (0 if not yet).
-    pub disbursed_at: u64,
-    /// Total amount repaid so far.
-    pub amount_repaid: i128,
-    /// Due timestamp for full repayment.
-    pub due_at: u64,
-}
-
-/// Records a vote on a loan request.
-#[contracttype]
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct LoanVote {
-    pub loan_id: u64,
-    pub voter: Address,
-    pub in_favor: bool,
-    pub timestamp: u64,
-}
-
-// ── Emergency Fund ────────────────────────────────────────────────────────
-
-/// Status of an emergency fund request.
-#[contracttype]
-#[derive(Clone, Copy, Debug, Eq, PartialEq, PartialOrd, Ord)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[repr(u32)]
-pub enum EmergencyStatus {
-    Pending = 0,
-    Approved = 1,
-    Rejected = 2,
-    Disbursed = 3,
-    Repaid = 4,
+pub enum ScoreChangeReason {
+    /// Score recalculated after a contribution was made.
+    ContributionMade = 0,
+    /// Score recalculated after a payout was received.
+    PayoutReceived = 1,
+    /// Score recalculated after a group was completed.
+    GroupCompleted = 2,
+    /// Score recalculated after a late contribution.
+    LateContribution = 3,
+    /// Score recalculated after a penalty was applied.
+    PenaltyApplied = 4,
 }
 
-/// An emergency withdrawal request from a group member.
+/// Aggregated on-chain reputation record for a member.
+///
+/// Stored in persistent storage keyed by member address.
+/// Updated automatically after every contribution, payout, and group completion.
 #[contracttype]
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct EmergencyRequest {
-    pub id: u64,
+pub struct ReputationScore {
+    /// The member this record belongs to.
+    pub member: Address,
+
+    /// Composite credit score in the range 0–1000.
+    /// Higher is better.
+    pub credit_score: u32,
+
+    /// Derived tier based on `credit_score`.
+    pub tier: ReputationTier,
+
+    /// Total number of on-time contributions across all groups.
+    pub total_on_time_payments: u32,
+
+    /// Total number of late contributions (within grace period).
+    pub total_late_payments: u32,
+
+    /// Total number of missed contributions (past grace period, future use).
+    pub total_missed_payments: u32,
+
+    /// Number of groups the member has fully completed.
+    pub groups_completed: u32,
+
+    /// Number of groups the member has ever joined.
+    pub groups_joined: u32,
+
+    /// Cumulative amount contributed across all groups (in stroops).
+    pub total_amount_contributed: i128,
+
+    /// Unix timestamp of the last reputation update.
+    pub last_updated: u64,
+
+    /// Unix timestamp of the member's first recorded activity.
+    pub first_activity_at: u64,
+}
+
+/// A point-in-time snapshot of a member's credit score.
+///
+/// Appended to the member's score history on every recalculation.
+/// Provides an auditable trail of score changes over time.
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct CreditScoreSnapshot {
+    /// The credit score at the time of this snapshot.
+    pub score: u32,
+    /// Unix timestamp when this snapshot was recorded.
+    pub recorded_at: u64,
+    /// The event that triggered this recalculation.
+    pub reason: ScoreChangeReason,
+}
+
+/// A single entry in a member's payment history.
+///
+/// Recorded for every contribution and payout event.
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct PaymentHistoryEntry {
+    /// The group this payment belongs to.
     pub group_id: u64,
-    pub requester: Address,
+    /// The cycle number this payment was made in.
+    pub cycle: u32,
+    /// Amount in stroops (contribution or payout).
     pub amount: i128,
-    pub reason: soroban_sdk::String,
-    pub status: EmergencyStatus,
-    pub votes_for: u32,
-    pub votes_against: u32,
-    /// Shorter voting deadline for fast approval (e.g. 24h).
-    pub voting_deadline: u64,
-    pub created_at: u64,
-    pub disbursed_at: u64,
-    pub amount_repaid: i128,
-    /// Repayment due date.
-    pub repay_by: u64,
-}
-
-/// Records a vote on an emergency request.
-#[contracttype]
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct EmergencyVote {
-    pub request_id: u64,
-    pub voter: Address,
-    pub in_favor: bool,
+    /// Unix timestamp of the payment.
     pub timestamp: u64,
+    /// Whether this contribution was made after the cycle deadline (late).
+    pub is_late: bool,
+    /// Whether this entry records a payout received (vs. a contribution made).
+    pub is_payout: bool,
 }
 
-/// Approval threshold for loans (51%).
-pub const LOAN_APPROVAL_THRESHOLD: u32 = 51;
-/// Approval threshold for emergency requests (51%).
-pub const EMERGENCY_APPROVAL_THRESHOLD: u32 = 51;
-/// Fast voting window for emergency requests (24 hours).
-pub const EMERGENCY_VOTING_PERIOD: u64 = 86_400;
-/// Standard voting window for loans (7 days).
-pub const LOAN_VOTING_PERIOD: u64 = 604_800;
+/// Maximum number of credit score snapshots retained per member.
+/// Older entries are dropped when the cap is reached (FIFO).
+pub const MAX_SCORE_HISTORY: u32 = 50;
+
+/// Maximum number of payment history entries retained per member.
+pub const MAX_PAYMENT_HISTORY: u32 = 100;

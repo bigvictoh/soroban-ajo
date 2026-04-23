@@ -11,6 +11,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import { useAuthStore } from '../../store/authStore';
 import { fetchProfile } from '../../services/api';
 import { Card } from '../../components/ui/Card';
@@ -19,6 +20,7 @@ import { Colors, Spacing, Typography, BorderRadius } from '../../constants/theme
 import type { UserProfile } from '../../types';
 
 export function ProfileScreen() {
+  const router = useRouter();
   const { session, logout } = useAuthStore();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [avatarUri, setAvatarUri] = useState<string | null>(null);
@@ -101,7 +103,7 @@ export function ProfileScreen() {
         {/* Settings */}
         <Card style={styles.settingsCard} padding="none">
           <SettingsRow icon="notifications-outline" label="Notifications" onPress={() => {}} />
-          <SettingsRow icon="shield-outline" label="Security & Biometrics" onPress={() => {}} />
+          <SettingsRow icon="shield-outline" label="Security & Biometrics" onPress={() => router.push('/biometric-settings')} />
           <SettingsRow icon="globe-outline" label="Network" value={session?.network} onPress={() => {}} />
           <SettingsRow icon="document-text-outline" label="Transaction History" onPress={() => {}} />
         </Card>

@@ -68,6 +68,18 @@ pub enum StorageKey {
     /// Aggregated member statistics.
     /// Stored in persistent storage under `("MSTATS", member)`.
     MemberStatsData(Address),
+
+    /// Aggregated reputation record for a member.
+    /// Stored in persistent storage under `("MREP", member)`.
+    MemberReputation(Address),
+
+    /// Ordered list of credit score snapshots for a member.
+    /// Stored in persistent storage under `("MREPSNAP", member)`.
+    MemberReputationSnapshots(Address),
+
+    /// Ordered list of payment history entries for a member.
+    /// Stored in persistent storage under `("MPAYHIST", member)`.
+    MemberPaymentHistory(Address),
 }
 
 impl StorageKey {
@@ -99,6 +111,9 @@ impl StorageKey {
             StorageKey::GroupMilestones(_) => symbol_short!("GMILE"),
             StorageKey::MemberAchievements(_) => symbol_short!("MACHIEV"),
             StorageKey::MemberStatsData(_) => symbol_short!("MSTATS"),
+            StorageKey::MemberReputation(_) => symbol_short!("MREP"),
+            StorageKey::MemberReputationSnapshots(_) => symbol_short!("MREPSNAP"),
+            StorageKey::MemberPaymentHistory(_) => symbol_short!("MPAYHIST"),
         }
     }
 }
@@ -907,94 +922,76 @@ pub fn get_group_dispute_ids(env: &Env, group_id: u64) -> Vec<u64> {
     env.storage().persistent().get(&key).unwrap_or_else(|| Vec::new(env))
 }
 
-// ── Loan storage ──────────────────────────────────────────────────────────
+// ── Reputation storage ────────────────────────────────────────────────────
 
-/// Returns the next loan ID and increments the counter.
-pub fn get_next_loan_id(env: &Env) -> u64 {
-    let key = symbol_short!("LCOUNTER");
-    let id: u64 = env.storage().instance().get(&key).unwrap_or(0);
-    env.storage().instance().set(&key, &(id + 1));
-    id
+/// Stores the aggregated reputation record for a member.
+pub fn store_reputation(env: &Env, member: &Address, rep: &crate::types::ReputationScore) {
+    let key = (symbol_short!("MREP"), member);
+    env.storage().persistent().set(&key, rep);
 }
 
-/// Stores a loan request.
-pub fn store_loan(env: &Env, id: u64, loan: &crate::types::LoanRequest) {
-    let key = (symbol_short!("LOAN"), id);
-    env.storage().persistent().set(&key, loan);
-}
-
-/// Retrieves a loan request by ID.
-pub fn get_loan(env: &Env, id: u64) -> Option<crate::types::LoanRequest> {
-    let key = (symbol_short!("LOAN"), id);
+/// Retrieves the aggregated reputation record for a member.
+pub fn get_reputation(env: &Env, member: &Address) -> Option<crate::types::ReputationScore> {
+    let key = (symbol_short!("MREP"), member);
     env.storage().persistent().get(&key)
 }
 
-/// Records a loan vote.
-pub fn store_loan_vote(env: &Env, loan_id: u64, voter: &Address, vote: &crate::types::LoanVote) {
-    let key = (symbol_short!("LOANVOTE"), loan_id, voter);
-    env.storage().persistent().set(&key, vote);
+/// Appends a credit score snapshot to the member's history.
+///
+/// Enforces a rolling cap of [`MAX_SCORE_HISTORY`](crate::types::MAX_SCORE_HISTORY)
+/// entries by dropping the oldest entry when the cap is reached.
+pub fn append_credit_snapshot(
+    env: &Env,
+    member: &Address,
+    snapshot: &crate::types::CreditScoreSnapshot,
+) {
+    let key = (symbol_short!("MREPSNAP"), member);
+    let mut history: Vec<crate::types::CreditScoreSnapshot> =
+        env.storage().persistent().get(&key).unwrap_or_else(|| Vec::new(env));
+
+    // Enforce rolling cap
+    while history.len() >= crate::types::MAX_SCORE_HISTORY {
+        history.remove(0);
+    }
+    history.push_back(snapshot.clone());
+    env.storage().persistent().set(&key, &history);
 }
 
-/// Returns `true` if the voter has already voted on this loan.
-pub fn has_voted_on_loan(env: &Env, loan_id: u64, voter: &Address) -> bool {
-    let key = (symbol_short!("LOANVOTE"), loan_id, voter);
-    env.storage().persistent().has(&key)
-}
-
-/// Stores the list of loan IDs for a group.
-pub fn store_group_loan_ids(env: &Env, group_id: u64, ids: &Vec<u64>) {
-    let key = (symbol_short!("LOANGIDS"), group_id);
-    env.storage().persistent().set(&key, ids);
-}
-
-/// Retrieves the list of loan IDs for a group.
-pub fn get_group_loan_ids(env: &Env, group_id: u64) -> Vec<u64> {
-    let key = (symbol_short!("LOANGIDS"), group_id);
-    env.storage().persistent().get(&key).unwrap_or_else(|| Vec::new(env))
-}
-
-// ── Emergency fund storage ────────────────────────────────────────────────
-
-/// Returns the next emergency request ID and increments the counter.
-pub fn get_next_emergency_id(env: &Env) -> u64 {
-    let key = symbol_short!("ECOUNTER");
-    let id: u64 = env.storage().instance().get(&key).unwrap_or(0);
-    env.storage().instance().set(&key, &(id + 1));
-    id
-}
-
-/// Stores an emergency request.
-pub fn store_emergency(env: &Env, id: u64, req: &crate::types::EmergencyRequest) {
-    let key = (symbol_short!("EMERG"), id);
-    env.storage().persistent().set(&key, req);
-}
-
-/// Retrieves an emergency request by ID.
-pub fn get_emergency(env: &Env, id: u64) -> Option<crate::types::EmergencyRequest> {
-    let key = (symbol_short!("EMERG"), id);
+/// Retrieves the credit score snapshot history for a member.
+pub fn get_credit_snapshots(
+    env: &Env,
+    member: &Address,
+) -> Option<Vec<crate::types::CreditScoreSnapshot>> {
+    let key = (symbol_short!("MREPSNAP"), member);
     env.storage().persistent().get(&key)
 }
 
-/// Records an emergency vote.
-pub fn store_emergency_vote(env: &Env, req_id: u64, voter: &Address, vote: &crate::types::EmergencyVote) {
-    let key = (symbol_short!("EMERGVOT"), req_id, voter);
-    env.storage().persistent().set(&key, vote);
+/// Appends a payment history entry for a member.
+///
+/// Enforces a rolling cap of [`MAX_PAYMENT_HISTORY`](crate::types::MAX_PAYMENT_HISTORY)
+/// entries by dropping the oldest entry when the cap is reached.
+pub fn append_payment_history(
+    env: &Env,
+    member: &Address,
+    entry: &crate::types::PaymentHistoryEntry,
+) {
+    let key = (symbol_short!("MPAYHIST"), member);
+    let mut history: Vec<crate::types::PaymentHistoryEntry> =
+        env.storage().persistent().get(&key).unwrap_or_else(|| Vec::new(env));
+
+    // Enforce rolling cap
+    while history.len() >= crate::types::MAX_PAYMENT_HISTORY {
+        history.remove(0);
+    }
+    history.push_back(entry.clone());
+    env.storage().persistent().set(&key, &history);
 }
 
-/// Returns `true` if the voter has already voted on this emergency request.
-pub fn has_voted_on_emergency(env: &Env, req_id: u64, voter: &Address) -> bool {
-    let key = (symbol_short!("EMERGVOT"), req_id, voter);
-    env.storage().persistent().has(&key)
-}
-
-/// Stores the list of emergency request IDs for a group.
-pub fn store_group_emergency_ids(env: &Env, group_id: u64, ids: &Vec<u64>) {
-    let key = (symbol_short!("EMERGIDS"), group_id);
-    env.storage().persistent().set(&key, ids);
-}
-
-/// Retrieves the list of emergency request IDs for a group.
-pub fn get_group_emergency_ids(env: &Env, group_id: u64) -> Vec<u64> {
-    let key = (symbol_short!("EMERGIDS"), group_id);
-    env.storage().persistent().get(&key).unwrap_or_else(|| Vec::new(env))
+/// Retrieves the payment history for a member.
+pub fn get_payment_history(
+    env: &Env,
+    member: &Address,
+) -> Option<Vec<crate::types::PaymentHistoryEntry>> {
+    let key = (symbol_short!("MPAYHIST"), member);
+    env.storage().persistent().get(&key)
 }

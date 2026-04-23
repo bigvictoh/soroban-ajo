@@ -39,11 +39,11 @@ jobs:
 
       - name: Type check backend
         run: cd backend && npm run type-check
-        continue-on-error: true
+        # continue-on-error: true # Recommended to fail if type check fails
 
       - name: Build backend
         run: cd backend && npm run build
-        continue-on-error: true
+        # continue-on-error: true # Recommended to fail if build fails
 
   # ─── Frontend Bundle Size Check ────────────────────────────────────────────
   frontend-bundle:
@@ -68,7 +68,7 @@ jobs:
         env:
           NEXT_PUBLIC_STELLAR_NETWORK: testnet
           NEXT_PUBLIC_SOROBAN_RPC_URL: https://soroban-testnet.stellar.org
-        continue-on-error: true
+        # continue-on-error: true # Recommended to fail if build fails
 
       - name: Check bundle sizes
         run: |
@@ -91,7 +91,6 @@ jobs:
           else
             echo "No build artifacts found (build may have failed)"
           fi
-        continue-on-error: true
 
       - name: Upload bundle analysis
         if: always()
@@ -100,7 +99,6 @@ jobs:
           name: bundle-analysis
           path: frontend/.next/
           retention-days: 7
-        continue-on-error: true
 
   # ─── Load Testing ──────────────────────────────────────────────────────────
   load-test:
@@ -153,23 +151,22 @@ jobs:
           for i in {1..30}; do
             if curl -sf http://localhost:3001/health > /dev/null 2>&1; then
               echo "Server is ready"
-              break
+              exit 0
             fi
             echo "Waiting for server... ($i/30)"
             sleep 2
           done
+          exit 1
         env:
           NODE_ENV: test
           PORT: 3001
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/ajo_test
           JWT_SECRET: test-secret-for-ci
-        continue-on-error: true
 
       - name: Install k6
         run: |
           curl https://github.com/grafana/k6/releases/download/v0.49.0/k6-v0.49.0-linux-amd64.tar.gz -L | tar xvz --strip-components 1
           sudo mv k6 /usr/local/bin/
-        continue-on-error: true
 
       - name: Run load test (load scenario only in CI)
         run: |
@@ -179,7 +176,6 @@ jobs:
             --vus 10 \
             --out json=scripts/load-test-results.json \
             scripts/load-test.js || true
-        continue-on-error: true
 
       - name: Upload load test results
         if: always()
@@ -188,7 +184,6 @@ jobs:
           name: load-test-results
           path: scripts/load-test-results.json
           retention-days: 30
-        continue-on-error: true
 
       - name: Stop backend server
         if: always()
@@ -210,7 +205,6 @@ jobs:
         with:
           name: bundle-analysis
           path: bundle-analysis
-        continue-on-error: true
 
       - name: Comment performance summary on PR
         uses: actions/github-script@v7
@@ -245,4 +239,3 @@ jobs:
               repo: context.repo.repo,
               body,
             });
-        continue-on-error: true

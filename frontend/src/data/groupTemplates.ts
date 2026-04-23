@@ -2,7 +2,7 @@ export interface GroupTemplate {
   id: string;
   name: string;
   description: string;
-  category: 'family' | 'friends' | 'community' | 'emergency' | 'business';
+  category: 'family' | 'friends' | 'community' | 'emergency' | 'business' | 'wedding' | 'education' | 'investment';
   icon: string;
   contributionAmount: number;
   frequency: 'weekly' | 'monthly' | 'quarterly';
@@ -14,6 +14,7 @@ export interface GroupTemplate {
   isPopular: boolean;
   usageCount: number;
   tags: string[];
+  shareCode?: string;
 }
 
 export const defaultTemplates: GroupTemplate[] = [
@@ -33,6 +34,7 @@ export const defaultTemplates: GroupTemplate[] = [
     isPopular: true,
     usageCount: 1250,
     tags: ['family', 'savings', 'monthly'],
+    shareCode: 'FAM-SAV-001',
   },
   {
     id: 'friends-circle',
@@ -50,6 +52,7 @@ export const defaultTemplates: GroupTemplate[] = [
     isPopular: true,
     usageCount: 980,
     tags: ['friends', 'weekly', 'social'],
+    shareCode: 'FRD-CIR-002',
   },
   {
     id: 'community-fund',
@@ -67,6 +70,7 @@ export const defaultTemplates: GroupTemplate[] = [
     isPopular: true,
     usageCount: 750,
     tags: ['community', 'large-group', 'monthly'],
+    shareCode: 'COM-FND-003',
   },
   {
     id: 'emergency-fund',
@@ -84,6 +88,7 @@ export const defaultTemplates: GroupTemplate[] = [
     isPopular: false,
     usageCount: 420,
     tags: ['emergency', 'flexible', 'small-group'],
+    shareCode: 'EMR-FND-004',
   },
   {
     id: 'business-partnership',
@@ -101,10 +106,137 @@ export const defaultTemplates: GroupTemplate[] = [
     isPopular: true,
     usageCount: 650,
     tags: ['business', 'quarterly', 'investment'],
+    shareCode: 'BIZ-PAR-005',
+  },
+  {
+    id: 'wedding-fund',
+    name: 'Wedding Fund',
+    description: 'Save together for a dream wedding. Pool contributions from family and close friends to cover venue, catering, and celebrations.',
+    category: 'wedding',
+    icon: '💍',
+    contributionAmount: 200,
+    frequency: 'monthly',
+    minMembers: 5,
+    maxMembers: 15,
+    cycleDuration: 12,
+    cycleLength: 30,
+    isPublic: false,
+    isPopular: true,
+    usageCount: 870,
+    tags: ['wedding', 'celebration', 'family', 'monthly'],
+    shareCode: 'WED-FND-006',
+  },
+  {
+    id: 'education-savings',
+    name: 'Education Savings',
+    description: 'Dedicated savings group for school fees, university tuition, or professional certifications. Invest in knowledge together.',
+    category: 'education',
+    icon: '🎓',
+    contributionAmount: 120,
+    frequency: 'monthly',
+    minMembers: 4,
+    maxMembers: 12,
+    cycleDuration: 9,
+    cycleLength: 30,
+    isPublic: true,
+    isPopular: true,
+    usageCount: 1100,
+    tags: ['education', 'tuition', 'school', 'monthly'],
+    shareCode: 'EDU-SAV-007',
+  },
+  {
+    id: 'emergency-medical',
+    name: 'Medical Emergency Pool',
+    description: 'A rapid-response savings pool for medical emergencies. Members can access funds quickly when health crises arise.',
+    category: 'emergency',
+    icon: '🏥',
+    contributionAmount: 80,
+    frequency: 'monthly',
+    minMembers: 6,
+    maxMembers: 10,
+    cycleDuration: 6,
+    cycleLength: 30,
+    isPublic: false,
+    isPopular: false,
+    usageCount: 310,
+    tags: ['medical', 'emergency', 'health', 'monthly'],
+    shareCode: 'MED-EMR-008',
+  },
+  {
+    id: 'investment-club',
+    name: 'Investment Club',
+    description: 'Pool resources to invest in stocks, crypto, or real estate. Grow wealth together with shared research and decisions.',
+    category: 'investment',
+    icon: '📈',
+    contributionAmount: 300,
+    frequency: 'monthly',
+    minMembers: 5,
+    maxMembers: 10,
+    cycleDuration: 12,
+    cycleLength: 30,
+    isPublic: true,
+    isPopular: true,
+    usageCount: 540,
+    tags: ['investment', 'stocks', 'wealth', 'monthly'],
+    shareCode: 'INV-CLB-009',
+  },
+  {
+    id: 'holiday-travel',
+    name: 'Holiday Travel Fund',
+    description: 'Save weekly with friends or family for a group holiday. Cover flights, accommodation, and activities together.',
+    category: 'friends',
+    icon: '✈️',
+    contributionAmount: 60,
+    frequency: 'weekly',
+    minMembers: 4,
+    maxMembers: 8,
+    cycleDuration: 26,
+    cycleLength: 7,
+    isPublic: true,
+    isPopular: true,
+    usageCount: 720,
+    tags: ['travel', 'holiday', 'friends', 'weekly'],
+    shareCode: 'HOL-TRV-010',
+  },
+  {
+    id: 'startup-seed',
+    name: 'Startup Seed Fund',
+    description: 'Co-founders and early supporters pool capital to launch a new business. Structured quarterly contributions for serious entrepreneurs.',
+    category: 'business',
+    icon: '🚀',
+    contributionAmount: 1000,
+    frequency: 'quarterly',
+    minMembers: 3,
+    maxMembers: 6,
+    cycleDuration: 4,
+    cycleLength: 90,
+    isPublic: false,
+    isPopular: false,
+    usageCount: 190,
+    tags: ['startup', 'business', 'seed', 'quarterly'],
+    shareCode: 'STR-SED-011',
+  },
+  {
+    id: 'farmers-cooperative',
+    name: "Farmers' Cooperative",
+    description: 'Agricultural savings group for farmers to pool resources for seeds, equipment, and seasonal expenses.',
+    category: 'community',
+    icon: '🌾',
+    contributionAmount: 50,
+    frequency: 'monthly',
+    minMembers: 8,
+    maxMembers: 20,
+    cycleDuration: 12,
+    cycleLength: 30,
+    isPublic: true,
+    isPopular: false,
+    usageCount: 430,
+    tags: ['farming', 'agriculture', 'cooperative', 'monthly'],
+    shareCode: 'FRM-COP-012',
   },
 ];
 
-export const categoryInfo = {
+export const categoryInfo: Record<GroupTemplate['category'], { name: string; description: string; color: 'blue' | 'purple' | 'green' | 'red' | 'orange' | 'pink' | 'yellow' | 'teal' }> = {
   family: {
     name: 'Family',
     description: 'Savings groups for family members',
@@ -129,5 +261,20 @@ export const categoryInfo = {
     name: 'Business',
     description: 'Professional partnerships',
     color: 'orange',
+  },
+  wedding: {
+    name: 'Wedding',
+    description: 'Wedding and celebration funds',
+    color: 'pink',
+  },
+  education: {
+    name: 'Education',
+    description: 'School fees and tuition savings',
+    color: 'yellow',
+  },
+  investment: {
+    name: 'Investment',
+    description: 'Wealth-building investment clubs',
+    color: 'teal',
   },
 };

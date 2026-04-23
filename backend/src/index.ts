@@ -54,21 +54,9 @@ app.use('/api/jobs', jobsRouter)
 import { disputesRouter } from './routes/disputes'
 app.use('/api/disputes', disputesRouter)
 
-// Loans
-import { loansRouter } from './routes/loans'
-app.use('/api/loans', loansRouter)
-
-// Emergency Fund
-import { emergencyRouter } from './routes/emergency'
-app.use('/api/emergency', emergencyRouter)
-
-// Insurance
-import { insuranceRouter } from './routes/insurance'
-app.use('/api/insurance', insuranceRouter)
-
-// Goals
-import { goalsRouter } from './routes/goals'
-app.use('/api/goals', goalsRouter)
+// Templates
+import { templatesRouter } from './routes/templates'
+app.use('/api/templates', templatesRouter)
 
 // 404 handler
 app.use((req, res) => {

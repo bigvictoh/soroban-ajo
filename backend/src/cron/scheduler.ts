@@ -2,7 +2,9 @@ import * as cron from 'node-cron'
 import { createQueue, getQueue } from '../queues/queueManager'
 import { SYNC_QUEUE_NAME } from '../queues/syncQueue'
 import { REMINDER_QUEUE_NAME } from '../jobs/workers'
+import { addScheduleJob } from '../queues/scheduleQueue'
 import { logger } from '../utils/logger'
+import { backupService } from '../services/backupService'
 
 const ANALYTICS_QUEUE_NAME = 'analytics'
 
@@ -92,6 +94,24 @@ export function startScheduler(): void {
     cron.schedule('0 2 * * *', async () => {
       logger.info('Cron: scheduling database cleanup')
       await getAnalyticsQueue().add('cleanup', { type: 'cleanup' })
+    })
+  )
+
+  // ── Contribution Schedule jobs ──────────────────────────────────────────
+
+  // Grace period enforcement — every 15 minutes
+  scheduledTasks.push(
+    cron.schedule('*/15 * * * *', async () => {
+      logger.info('Cron: scheduling grace period enforcement')
+      await addScheduleJob({ type: 'enforce_grace_periods' })
+    })
+  )
+
+  // Due-date reminders — every hour (catches schedules due in the next 24 h)
+  scheduledTasks.push(
+    cron.schedule('0 * * * *', async () => {
+      logger.info('Cron: scheduling contribution due reminders')
+      await addScheduleJob({ type: 'send_due_reminders' })
     })
   )
 

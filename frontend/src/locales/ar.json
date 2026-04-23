@@ -1,0 +1,217 @@
+{
+  "common": {
+    "appName": "أجو",
+    "loading": "جارٍ التحميل...",
+    "error": "خطأ",
+    "success": "نجاح",
+    "cancel": "إلغاء",
+    "confirm": "تأكيد",
+    "save": "حفظ",
+    "delete": "حذف",
+    "edit": "تعديل",
+    "close": "إغلاق",
+    "back": "رجوع",
+    "next": "التالي",
+    "submit": "إرسال",
+    "search": "بحث",
+    "filter": "تصفية",
+    "clear": "مسح",
+    "viewDetails": "عرض التفاصيل",
+    "learnMore": "اعرف المزيد",
+    "getStarted": "ابدأ الآن"
+  },
+  "nav": {
+    "home": "الرئيسية",
+    "dashboard": "لوحة التحكم",
+    "groups": "المجموعات",
+    "profile": "الملف الشخصي",
+    "analytics": "التحليلات",
+    "community": "المجتمع",
+    "settings": "الإعدادات"
+  },
+  "home": {
+    "hero": {
+      "title": "ادخروا معاً. انموا معاً.",
+      "subtitle": "ادخار تقليدي بثقة البلوكتشين",
+      "description": "أجو هو نظام ادخار مجتمعي تساهم فيه المجموعات معاً ويتناوب الأعضاء على استلام المدفوعات. مدعوم الآن بشبكة ستيلار للشفافية والأمان."
+    },
+    "howItWorks": {
+      "title": "كيف يعمل",
+      "step1": {
+        "title": "انضم أو أنشئ مجموعة",
+        "description": "ابدأ مجموعة ادخار خاصة بك أو انضم إلى مجموعة موجودة مع الأصدقاء أو العائلة أو أفراد المجتمع."
+      },
+      "step2": {
+        "title": "ساهم بانتظام",
+        "description": "يساهم كل عضو بمبلغ ثابت في كل دورة. تُسجَّل جميع المساهمات على البلوكتشين."
+      },
+      "step3": {
+        "title": "استلم مدفوعاتك",
+        "description": "يتناوب الأعضاء على استلام المبلغ الكامل. يحصل الجميع على دورهم حتى تكتمل الدورة."
+      }
+    }
+  },
+  "wallet": {
+    "connect": "ربط المحفظة",
+    "disconnect": "قطع الاتصال",
+    "connecting": "جارٍ الاتصال...",
+    "connected": "متصل",
+    "notConnected": "غير متصل",
+    "balance": "الرصيد",
+    "address": "العنوان",
+    "copyAddress": "نسخ العنوان",
+    "addressCopied": "تم نسخ العنوان!",
+    "installFreighter": "تثبيت محفظة فريتر",
+    "freighterRequired": "محفظة فريتر مطلوبة لاستخدام هذا التطبيق"
+  },
+  "group": {
+    "create": "إنشاء مجموعة",
+    "join": "الانضمام إلى مجموعة",
+    "leave": "مغادرة المجموعة",
+    "details": "تفاصيل المجموعة",
+    "members": "الأعضاء",
+    "status": "الحالة",
+    "active": "نشطة",
+    "complete": "مكتملة",
+    "cancelled": "ملغاة",
+    "contributionAmount": "مبلغ المساهمة",
+    "cycleDuration": "مدة الدورة",
+    "maxMembers": "الحد الأقصى للأعضاء",
+    "currentCycle": "الدورة الحالية",
+    "nextRecipient": "المستفيد التالي",
+    "contributionsReceived": "المساهمات المستلمة",
+    "pendingContributors": "المساهمون المعلقون",
+    "cycleStartTime": "وقت بدء الدورة",
+    "cycleEndTime": "وقت انتهاء الدورة",
+    "createdAt": "تاريخ الإنشاء",
+    "creator": "المنشئ",
+    "myGroups": "مجموعاتي",
+    "allGroups": "جميع المجموعات",
+    "noGroups": "لا توجد مجموعات",
+    "createFirst": "أنشئ مجموعتك الأولى للبدء"
+  },
+  "groupForm": {
+    "title": "إنشاء مجموعة جديدة",
+    "name": "اسم المجموعة",
+    "namePlaceholder": "أدخل اسم المجموعة",
+    "description": "الوصف",
+    "descriptionPlaceholder": "صف الغرض من هذه المجموعة",
+    "rules": "القواعد",
+    "rulesPlaceholder": "حدد قواعد وإرشادات المجموعة",
+    "contributionAmount": "مبلغ المساهمة (XLM)",
+    "contributionAmountPlaceholder": "المبلغ الذي يساهم به كل عضو",
+    "cycleDuration": "مدة الدورة (أيام)",
+    "cycleDurationPlaceholder": "مدة كل دورة",
+    "maxMembers": "الحد الأقصى للأعضاء",
+    "maxMembersPlaceholder": "الحد الأقصى لعدد الأعضاء (2-100)",
+    "creating": "جارٍ الإنشاء...",
+    "create": "إنشاء مجموعة"
+  },
+  "contribution": {
+    "make": "تقديم مساهمة",
+    "amount": "المبلغ",
+    "contribute": "ساهم",
+    "contributing": "جارٍ المساهمة...",
+    "success": "تمت المساهمة بنجاح!",
+    "alreadyContributed": "لقد ساهمت بالفعل في هذه الدورة",
+    "notMember": "لست عضواً في هذه المجموعة",
+    "cycleComplete": "اكتملت هذه الدورة",
+    "history": "سجل المساهمات"
+  },
+  "transaction": {
+    "history": "سجل المعاملات",
+    "type": "النوع",
+    "amount": "المبلغ",
+    "date": "التاريخ",
+    "status": "الحالة",
+    "pending": "معلق",
+    "confirmed": "مؤكد",
+    "failed": "فشل",
+    "contribution": "مساهمة",
+    "payout": "دفعة",
+    "noTransactions": "لا توجد معاملات بعد"
+  },
+  "profile": {
+    "title": "الملف الشخصي",
+    "settings": "إعدادات الملف الشخصي",
+    "displayName": "الاسم المعروض",
+    "email": "البريد الإلكتروني",
+    "bio": "نبذة",
+    "language": "اللغة",
+    "theme": "المظهر",
+    "notifications": "الإشعارات",
+    "save": "حفظ التغييرات",
+    "saving": "جارٍ الحفظ..."
+  },
+  "analytics": {
+    "title": "التحليلات",
+    "totalGroups": "إجمالي المجموعات",
+    "totalMembers": "إجمالي الأعضاء",
+    "totalContributions": "إجمالي المساهمات",
+    "totalPayouts": "إجمالي المدفوعات",
+    "activeGroups": "المجموعات النشطة",
+    "completedGroups": "المجموعات المكتملة"
+  },
+  "language": {
+    "select": "اختر اللغة",
+    "en": "English",
+    "es": "Español",
+    "fr": "Français",
+    "sw": "Kiswahili",
+    "pt": "Português",
+    "ar": "العربية"
+  },
+  "errors": {
+    "generic": "حدث خطأ ما",
+    "networkError": "خطأ في الشبكة. يرجى التحقق من اتصالك.",
+    "walletNotConnected": "يرجى ربط محفظتك",
+    "insufficientBalance": "رصيد غير كافٍ",
+    "transactionFailed": "فشلت المعاملة",
+    "groupNotFound": "المجموعة غير موجودة",
+    "unauthorized": "غير مصرح",
+    "invalidInput": "إدخال غير صالح",
+    "maxMembersExceeded": "تم تجاوز الحد الأقصى للأعضاء",
+    "alreadyMember": "أنت عضو بالفعل",
+    "notMember": "لست عضواً",
+    "alreadyContributed": "ساهمت بالفعل في هذه الدورة",
+    "groupComplete": "المجموعة مكتملة",
+    "contractPaused": "العقد متوقف مؤقتاً"
+  },
+  "dashboard": {
+    "welcomeBack": "مرحباً بعودتك!",
+    "welcomeToAjo": "مرحباً بك في أجو",
+    "manageGroups": "أدر مجموعات الادخار وتتبع مساهماتك.",
+    "connectWalletPrompt": "ربط محفظتك للبدء في الادخار المجتمعي.",
+    "activeGroups": "المجموعات النشطة",
+    "totalSaved": "إجمالي المدخرات",
+    "nextPayout": "الدفعة التالية",
+    "noneScheduled": "لا يوجد مجدول",
+    "yourGroups": "مجموعاتك",
+    "createGroup": "إنشاء مجموعة",
+    "noGroupsYet": "لا توجد مجموعات بعد",
+    "createFirstGroup": "أنشئ مجموعة ادخار أولى للبدء",
+    "createYourFirstGroup": "أنشئ مجموعتك الأولى",
+    "connectYourWallet": "ربط محفظتك",
+    "connectWalletDescription": "للوصول إلى لوحة التحكم وإدارة مجموعات الادخار، يرجى ربط محفظة ستيلار الخاصة بك.",
+    "backToHome": "العودة إلى الرئيسية",
+    "getFreighter": "احصل على محفظة فريتر"
+  },
+  "groups": {
+    "pageTitle": "مجموعات الادخار",
+    "pageSubtitle": "أنشئ وأدر مجموعات أجو للادخار",
+    "viewGroups": "عرض المجموعات",
+    "noGroupsFound": "لا توجد مجموعات تطابق معاييرك.",
+    "clearAllFilters": "مسح جميع الفلاتر"
+  },
+  "time": {
+    "seconds": "ثوانٍ",
+    "minutes": "دقائق",
+    "hours": "ساعات",
+    "days": "أيام",
+    "weeks": "أسابيع",
+    "months": "أشهر",
+    "years": "سنوات",
+    "ago": "منذ",
+    "remaining": "متبقٍ"
+  }
+}

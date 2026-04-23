@@ -1,8 +1,8 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import { GroupTemplate, categoryInfo } from '@/data/groupTemplates';
-import { Users, Clock, DollarSign, TrendingUp } from 'lucide-react';
+import { Users, Clock, DollarSign, TrendingUp, Share2, Check, Copy } from 'lucide-react';
 
 interface TemplateCardProps {
   template: GroupTemplate;
@@ -11,14 +11,29 @@ interface TemplateCardProps {
 }
 
 export default function TemplateCard({ template, onSelect, onPreview }: TemplateCardProps) {
-  const categoryColor = categoryInfo[template.category].color;
+  const [copied, setCopied] = useState(false);
+  const categoryColor = categoryInfo[template.category]?.color ?? 'blue';
 
-  const colorClasses = {
+  const colorClasses: Record<string, string> = {
     blue: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
     purple: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400',
     green: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
     red: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
     orange: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400',
+    pink: 'bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-400',
+    yellow: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400',
+    teal: 'bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-400',
+  };
+
+  const handleCopyShareCode = async () => {
+    if (!template.shareCode) return;
+    try {
+      await navigator.clipboard.writeText(template.shareCode);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // fallback: do nothing
+    }
   };
 
   return (
@@ -31,7 +46,7 @@ export default function TemplateCard({ template, onSelect, onPreview }: Template
               {template.name}
             </h3>
             <span className={`inline-block px-2 py-0.5 rounded text-xs font-medium ${colorClasses[categoryColor]}`}>
-              {categoryInfo[template.category].name}
+              {categoryInfo[template.category]?.name ?? template.category}
             </span>
           </div>
         </div>
@@ -87,10 +102,26 @@ export default function TemplateCard({ template, onSelect, onPreview }: Template
         >
           Preview
         </button>
+        {template.shareCode && (
+          <button
+            onClick={handleCopyShareCode}
+            title={`Copy share code: ${template.shareCode}`}
+            className="px-3 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg text-sm transition-colors"
+            aria-label="Copy share code"
+          >
+            {copied ? <Check className="w-4 h-4 text-green-500" /> : <Share2 className="w-4 h-4" />}
+          </button>
+        )}
       </div>
 
+      {template.shareCode && (
+        <p className="text-xs text-gray-400 dark:text-gray-500 mt-3 text-center font-mono">
+          {template.shareCode}
+        </p>
+      )}
+
       {template.usageCount > 0 && (
-        <p className="text-xs text-gray-500 dark:text-gray-400 mt-3 text-center">
+        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 text-center">
           Used by {template.usageCount.toLocaleString()} groups
         </p>
       )}

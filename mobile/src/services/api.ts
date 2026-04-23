@@ -27,9 +27,40 @@ export async function clearToken() {
 }
 
 // Auth
-export async function generateAuthToken(publicKey: string): Promise<string> {
-  const { data } = await client.post<{ token: string }>('/auth/token', { publicKey });
-  return data.token;
+export type TwoFactorMethod = 'totp' | 'sms' | 'backup';
+
+export interface TokenResponse {
+  token?: string;
+  twoFactorEnabled?: boolean;
+  requiresTwoFactor?: boolean;
+  twoFactorMethod?: TwoFactorMethod;
+  pendingToken?: string;
+  devOtp?: string; // dev/test only
+}
+
+export async function generateAuthToken(
+  publicKey: string,
+  twoFactor?: {
+    pendingToken: string;
+    method: TwoFactorMethod;
+    code: string; // totpCode, smsCode, or backupCode
+  },
+): Promise<TokenResponse> {
+  const body: Record<string, string> = { publicKey };
+  if (twoFactor) {
+    body.pendingToken = twoFactor.pendingToken;
+    body.twoFactorMethod = twoFactor.method;
+    if (twoFactor.method === 'totp') body.totpCode = twoFactor.code;
+    else if (twoFactor.method === 'sms') body.smsCode = twoFactor.code;
+    else if (twoFactor.method === 'backup') body.backupCode = twoFactor.code;
+  }
+  const { data } = await client.post<TokenResponse>('/auth/token', body);
+  return data;
+}
+
+export async function recover2FA(publicKey: string, backupCode: string): Promise<{ token: string }> {
+  const { data } = await client.post<{ token: string }>('/auth/2fa/recover', { publicKey, backupCode });
+  return data;
 }
 
 // Groups

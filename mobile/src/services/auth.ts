@@ -5,7 +5,7 @@
  * a manual public key entry flow, then sign a challenge via the backend.
  */
 import * as SecureStore from 'expo-secure-store';
-import { generateAuthToken, saveToken, clearToken } from './api';
+import { generateAuthToken, saveToken, clearToken, type TwoFactorMethod } from './api';
 import type { AuthSession, WalletProvider, StellarNetwork } from '../types';
 
 const SESSION_KEY = 'ajo_auth_session';
@@ -15,8 +15,13 @@ export async function createSession(
   provider: WalletProvider,
   network: StellarNetwork,
 ): Promise<AuthSession> {
-  const token = await generateAuthToken(address);
-  await saveToken(token);
+  const result = await generateAuthToken(address);
+
+  if (!result.token) {
+    throw new Error('Unexpected: no token returned from createSession');
+  }
+
+  await saveToken(result.token);
 
   const session: AuthSession = {
     address,
@@ -24,7 +29,36 @@ export async function createSession(
     network,
     createdAt: new Date().toISOString(),
     expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-    token,
+    token: result.token,
+  };
+
+  await SecureStore.setItemAsync(SESSION_KEY, JSON.stringify(session));
+  return session;
+}
+
+export async function createSessionWith2FA(
+  address: string,
+  provider: WalletProvider,
+  network: StellarNetwork,
+  pendingToken: string,
+  method: TwoFactorMethod,
+  code: string,
+): Promise<AuthSession> {
+  const result = await generateAuthToken(address, { pendingToken, method, code });
+
+  if (!result.token) {
+    throw new Error('Invalid 2FA code');
+  }
+
+  await saveToken(result.token);
+
+  const session: AuthSession = {
+    address,
+    provider,
+    network,
+    createdAt: new Date().toISOString(),
+    expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+    token: result.token,
   };
 
   await SecureStore.setItemAsync(SESSION_KEY, JSON.stringify(session));

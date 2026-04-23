@@ -49,30 +49,33 @@ export const WalletConnector: React.FC = () => {
   // Detect wallets using comprehensive detection
   const walletDetection = detectWallets()
 
-  // Available wallets
-  const availableWallets = [
-    {
-      name: 'Freighter',
-      provider: 'freighter' as const,
-      isInstalled: walletDetection.freighter,
-      icon: '🚀',
-      description: 'Browser extension',
-    },
-    {
-      name: 'LOBSTR',
-      provider: 'lobstr' as const,
-      isInstalled: walletDetection.lobstr,
-      icon: '🦞',
-      description: 'Mobile app or Vault extension',
-    },
-    {
-      name: 'Albedo',
-      provider: 'albedo' as const,
-      isInstalled: walletDetection.albedo,
-      icon: '⭐',
-      description: 'Web-based wallet',
-    },
-  ]
+  // Suggestion: Centralize wallet configuration, potentially in a separate file or context
+  // This makes it easier to add/remove/modify wallets without changing the component logic.
+  const getAvailableWallets = useCallback(() => {
+    return [
+      {
+        name: 'Freighter',
+        provider: 'freighter' as const,
+        isInstalled: walletDetection.freighter,
+        icon: '🚀',
+        description: 'Browser extension',
+      },
+      {
+        name: 'LOBSTR',
+        provider: 'lobstr' as const,
+        isInstalled: walletDetection.lobstr,
+        icon: '🦞',
+        description: 'Mobile app or Vault extension',
+      },
+      {
+        name: 'Albedo',
+        provider: 'albedo' as const,
+        isInstalled: walletDetection.albedo,
+        icon: '⭐',
+        description: 'Web-based wallet',
+      },
+    ];
+  }, [walletDetection]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -90,6 +93,8 @@ export const WalletConnector: React.FC = () => {
     if (isAuthenticated) {
       setShowWalletSelection(false)
       setTwoFactorCode('')
+      // If wallet selection is shown, and then authenticated, it should close.
+      // This is already handled by setShowWalletSelection(false).
     }
   }, [isAuthenticated])
 
@@ -238,16 +243,15 @@ export const WalletConnector: React.FC = () => {
               ) : (
                 <>
                   <div className="space-y-3">
-                    {availableWallets.map((wallet) => (
+                    {getAvailableWallets().map((wallet) => (
                       <button
                         key={wallet.provider}
                         onClick={() => handleConnect(wallet.provider)}
                         disabled={!wallet.isInstalled}
-                        className={`w-full p-4 rounded-lg border-2 transition-all text-left ${
-                          wallet.isInstalled
+                        className={`w-full p-4 rounded-lg border-2 transition-all text-left ${wallet.isInstalled
                             ? 'border-gray-200 hover:border-blue-500 hover:bg-blue-50 dark:border-gray-700 dark:hover:border-blue-500 dark:hover:bg-blue-900/20 cursor-pointer'
                             : 'border-gray-100 bg-gray-50 dark:border-gray-800 dark:bg-gray-900 cursor-not-allowed opacity-60'
-                        }`}
+                          }`}
                       >
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-3">
@@ -386,11 +390,10 @@ export const WalletConnector: React.FC = () => {
                 <button
                   key={tab}
                   onClick={() => setActiveTab(tab)}
-                  className={`flex-1 py-2.5 text-xs font-semibold uppercase tracking-wider transition-colors ${
-                    activeTab === tab
+                  className={`flex-1 py-2.5 text-xs font-semibold uppercase tracking-wider transition-colors ${activeTab === tab
                       ? 'text-blue-600 border-b-2 border-blue-600 -mb-px bg-blue-50/30'
                       : 'text-gray-400 hover:text-gray-600'
-                  }`}
+                    }`}
                 >
                   {tab}
                 </button>

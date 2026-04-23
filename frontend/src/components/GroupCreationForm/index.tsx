@@ -1,7 +1,11 @@
 /**
- * @file GroupCreationForm.tsx
- * @description A multi-step form for creating new savings groups on the Soroban blockchain.
- * Refactored into smaller, focused sub-components following atomic design principles.
+ * @file GroupCreationForm/index.tsx
+ * @description Multi-step form for creating new savings groups.
+ * Step 0: Template picker (optional quick-start)
+ * Step 1: Basic Info
+ * Step 2: Settings
+ * Step 3: Members
+ * Step 4: Review
  */
 
 import React, { useState, useRef, useEffect } from 'react'
@@ -17,23 +21,16 @@ import { ReviewStep } from './ReviewStep'
 import { ErrorSummary } from './FormComponents'
 import { validateField, validateStep, validateForm } from './validation'
 import { GroupFormData, FormErrors, GroupCreationFormProps } from './types'
+import TemplateSelector from '../TemplateSelector'
+import { GroupTemplate } from '@/data/groupTemplates'
 
-const WIZARD_STEPS = ['Basic Info', 'Settings', 'Members', 'Review']
+const WIZARD_STEPS = ['Template', 'Basic Info', 'Settings', 'Members', 'Review']
 
-/**
- * A comprehensive form component for creating a new Ajo savings group.
- * Integrates with `useCreateGroup` for blockchain interaction and `useFormDraft`
- * for preserving user input across sessions.
- *
- * @param props - Component properties
- * @returns {React.ReactElement} The rendered creation form
- */
-export const GroupCreationForm: React.FC<GroupCreationFormProps> = ({
-  onSuccess,
-}) => {
+export const GroupCreationForm: React.FC<GroupCreationFormProps> = ({ onSuccess }) => {
   const router = useRouter()
   const createGroupMutation = useCreateGroup()
-  const [step, setStep] = useState(1)
+  // step 0 = template picker, steps 1-4 = form wizard
+  const [step, setStep] = useState(0)
 
   const [formData, setFormData] = useState<GroupFormData>({
     groupName: '',
@@ -46,7 +43,6 @@ export const GroupCreationForm: React.FC<GroupCreationFormProps> = ({
     invitedMembers: [],
   })
   const [memberInput, setMemberInput] = useState('')
-
   const [errors, setErrors] = useState<FormErrors>({})
   const [touched, setTouched] = useState<Record<string, boolean>>({})
   const [submitted, setSubmitted] = useState(false)
@@ -68,16 +64,29 @@ export const GroupCreationForm: React.FC<GroupCreationFormProps> = ({
     enabled: isDirty,
   })
 
-  // Focus on error summary when errors occur after submission
   useEffect(() => {
     if (submitted && Object.keys(errors).length > 0) {
       errorSummaryRef.current?.focus()
     }
   }, [errors, submitted])
 
-  const handleBlur = (
-    e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement>
-  ) => {
+  /** Apply a template's preset values and advance to step 1 */
+  const handleSelectTemplate = (template: GroupTemplate) => {
+    setFormData((prev) => ({
+      ...prev,
+      groupName: template.name,
+      description: template.description,
+      contributionAmount: template.contributionAmount,
+      cycleLength: template.cycleLength,
+      maxMembers: template.maxMembers,
+      frequency: template.frequency,
+      duration: template.cycleDuration,
+      category: template.category,
+    }))
+    setStep(1)
+  }
+
+  const handleBlur = (e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
     setTouched({ ...touched, [name]: true })
     const error = validateField(name, value)
@@ -85,18 +94,11 @@ export const GroupCreationForm: React.FC<GroupCreationFormProps> = ({
   }
 
   const handleChange = (
-    e: React.ChangeEvent<
-      HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
-    >
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
   ) => {
     const { name, value } = e.target
     let processedValue: string | number = value
-    if (
-      name === 'cycleLength' ||
-      name === 'contributionAmount' ||
-      name === 'maxMembers' ||
-      name === 'duration'
-    ) {
+    if (['cycleLength', 'contributionAmount', 'maxMembers', 'duration'].includes(name)) {
       const numValue = parseFloat(value)
       processedValue = isNaN(numValue) ? 0 : numValue
     }
@@ -114,23 +116,14 @@ export const GroupCreationForm: React.FC<GroupCreationFormProps> = ({
   }
 
   const handleAddMember = () => {
-    if (
-      memberInput.trim() &&
-      !formData.invitedMembers.includes(memberInput.trim())
-    ) {
-      setFormData({
-        ...formData,
-        invitedMembers: [...formData.invitedMembers, memberInput.trim()],
-      })
+    if (memberInput.trim() && !formData.invitedMembers.includes(memberInput.trim())) {
+      setFormData({ ...formData, invitedMembers: [...formData.invitedMembers, memberInput.trim()] })
       setMemberInput('')
     }
   }
 
   const handleRemoveMember = (member: string) => {
-    setFormData({
-      ...formData,
-      invitedMembers: formData.invitedMembers.filter((m) => m !== member),
-    })
+    setFormData({ ...formData, invitedMembers: formData.invitedMembers.filter((m) => m !== member) })
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -160,9 +153,7 @@ export const GroupCreationForm: React.FC<GroupCreationFormProps> = ({
       }
     } catch (err) {
       console.error('Failed to create group:', err)
-      toast.error(
-        err instanceof Error ? err.message : 'Failed to create group'
-      )
+      toast.error(err instanceof Error ? err.message : 'Failed to create group')
     }
   }
 
@@ -173,60 +164,83 @@ export const GroupCreationForm: React.FC<GroupCreationFormProps> = ({
           Create a New Group
         </h1>
         <p className="text-surface-500 dark:text-surface-400">
-          Set up your savings group and invite members to join
+          {step === 0
+            ? 'Start from a template or build from scratch'
+            : 'Set up your savings group and invite members to join'}
         </p>
       </div>
 
-      <StepIndicator steps={WIZARD_STEPS} currentStep={step} />
+      <StepIndicator steps={WIZARD_STEPS} currentStep={step + 1} />
 
-      <ErrorSummary ref={errorSummaryRef} errors={errors} submitted={submitted} />
+      {/* Step 0: Template Picker */}
+      {step === 0 && (
+        <div className="mt-6 space-y-4">
+          <TemplateSelector onSelectTemplate={handleSelectTemplate} />
+          <div className="flex justify-center pt-2">
+            <button
+              type="button"
+              onClick={() => setStep(1)}
+              className="text-sm text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 underline underline-offset-2 transition-colors"
+            >
+              Skip — build from scratch
+            </button>
+          </div>
+        </div>
+      )}
 
-      <form ref={formRef} onSubmit={handleSubmit} noValidate>
-        {step === 1 && (
-          <BasicInfoStep
-            formData={formData}
-            errors={errors}
-            touched={touched}
-            onNext={handleNext}
-            onChange={handleChange}
-            onBlur={handleBlur}
-            groupNameRef={groupNameRef}
-          />
-        )}
+      {/* Steps 1-4: Form wizard */}
+      {step > 0 && (
+        <>
+          <ErrorSummary ref={errorSummaryRef} errors={errors} submitted={submitted} />
 
-        {step === 2 && (
-          <SettingsStep
-            formData={formData}
-            errors={errors}
-            touched={touched}
-            onNext={handleNext}
-            onBack={() => setStep(1)}
-            onChange={handleChange}
-            onBlur={handleBlur}
-          />
-        )}
+          <form ref={formRef} onSubmit={handleSubmit} noValidate>
+            {step === 1 && (
+              <BasicInfoStep
+                formData={formData}
+                errors={errors}
+                touched={touched}
+                onNext={handleNext}
+                onChange={handleChange}
+                onBlur={handleBlur}
+                groupNameRef={groupNameRef}
+              />
+            )}
 
-        {step === 3 && (
-          <MembersStep
-            formData={formData}
-            memberInput={memberInput}
-            onNext={handleNext}
-            onBack={() => setStep(2)}
-            onMemberInputChange={setMemberInput}
-            onAddMember={handleAddMember}
-            onRemoveMember={handleRemoveMember}
-          />
-        )}
+            {step === 2 && (
+              <SettingsStep
+                formData={formData}
+                errors={errors}
+                touched={touched}
+                onNext={handleNext}
+                onBack={() => setStep(1)}
+                onChange={handleChange}
+                onBlur={handleBlur}
+              />
+            )}
 
-        {step === 4 && (
-          <ReviewStep
-            formData={formData}
-            onBack={() => setStep(3)}
-            onSubmit={handleSubmit}
-            isLoading={loading}
-          />
-        )}
-      </form>
+            {step === 3 && (
+              <MembersStep
+                formData={formData}
+                memberInput={memberInput}
+                onNext={handleNext}
+                onBack={() => setStep(2)}
+                onMemberInputChange={setMemberInput}
+                onAddMember={handleAddMember}
+                onRemoveMember={handleRemoveMember}
+              />
+            )}
+
+            {step === 4 && (
+              <ReviewStep
+                formData={formData}
+                onBack={() => setStep(3)}
+                onSubmit={handleSubmit}
+                isLoading={loading}
+              />
+            )}
+          </form>
+        </>
+      )}
     </div>
   )
 }

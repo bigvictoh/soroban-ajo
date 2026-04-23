@@ -13,6 +13,14 @@ model User {
   twoFactorEnabled   Boolean   @default(false)
   twoFactorSecret    String?
   twoFactorEnabledAt DateTime?
+  // 2FA method: totp | sms | null
+  twoFactorMethod    String?
+  // SMS 2FA
+  phoneNumber        String?
+  smsOtpHash         String?
+  smsOtpExpiresAt    DateTime?
+  // Backup codes (JSON array of hashed codes)
+  backupCodes        String?
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
 
@@ -91,11 +99,12 @@ model Group {
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 
-  members        GroupMember[]
-  contributions  Contribution[]
-  metrics        GroupMetrics?
-  multiSigConfig MultiSigConfig?
-  chatRoom       ChatRoom?
+  members              GroupMember[]
+  contributions        Contribution[]
+  metrics              GroupMetrics?
+  multiSigConfig       MultiSigConfig?
+  chatRoom             ChatRoom?
+  contributionSchedule ContributionSchedule?
 
   @@index([isActive, createdAt(sort: Desc)])
   @@index([name])
@@ -649,6 +658,43 @@ model ChatParticipant {
   @@index([userId])
 }
 
+model AuditLog {
+  id         String   @id @default(cuid())
+  actorId    String   // wallet address or system identifier
+  actorType  String   @default("USER") // USER, ADMIN, SYSTEM
+  action     String   // e.g. GROUP_CREATED, MEMBER_REMOVED, PAYOUT_TRIGGERED
+  targetType String?  // e.g. Group, User, Contribution
+  targetId   String?
+  ipAddress  String?
+  userAgent  String?
+  metadata   Json?
+  createdAt  DateTime @default(now())
+
+  @@index([actorId, createdAt(sort: Desc)])
+  @@index([action, createdAt(sort: Desc)])
+  @@index([targetType, targetId])
+  @@index([createdAt(sort: Desc)])
+}
+
+model BackupRecord {
+  id            String    @id @default(cuid())
+  backupType    String    // FULL, WAL
+  status        String    @default("PENDING") // PENDING, IN_PROGRESS, COMPLETED, FAILED, VERIFIED
+  storagePath   String
+  sizeBytes     BigInt?
+  checksum      String?
+  encryptionKey String?   // Key ID reference (never the actual key)
+  startedAt     DateTime  @default(now())
+  completedAt   DateTime?
+  verifiedAt    DateTime?
+  errorMessage  String?
+  metadata      Json?     // postgres_version, start_lsn, end_lsn, etc.
+
+  @@index([backupType, status])
+  @@index([startedAt(sort: Desc)])
+  @@index([status])
+}
+
 model EventStore {
   id            String   @id @default(cuid())
   sequenceNumber Int     @default(autoincrement())
@@ -663,4 +709,55 @@ model EventStore {
   @@index([aggregateId])
   @@index([type])
   @@index([sequenceNumber])
+}
+
+// ─── Contribution Schedule ────────────────────────────────────────────────────
+
+/// Frequency type for a group's contribution schedule.
+/// CUSTOM means the admin supplies an explicit intervalDays value.
+model ContributionSchedule {
+  id              String    @id @default(cuid())
+  groupId         String    @unique
+  /// WEEKLY | BI_WEEKLY | MONTHLY | CUSTOM
+  frequency       String
+  /// Only required when frequency = CUSTOM
+  intervalDays    Int?
+  /// Hours after the due date before a member is considered late
+  gracePeriodHours Int      @default(24)
+  /// How many hours the payment window stays open (0 = no hard close)
+  paymentWindowHours Int    @default(72)
+  /// Anchor date — the first contribution was/is due on this date
+  startDate       DateTime
+  /// Next computed due date (denormalised for fast queries)
+  nextDueDate     DateTime
+  /// Whether the schedule is currently active
+  isActive        Boolean   @default(true)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  group           Group     @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  windows         PaymentWindow[]
+
+  @@index([nextDueDate])
+  @@index([isActive, nextDueDate])
+}
+
+/// Tracks each individual payment window opened for a schedule cycle.
+model PaymentWindow {
+  id           String    @id @default(cuid())
+  scheduleId   String
+  cycleNumber  Int
+  opensAt      DateTime
+  dueAt        DateTime
+  closesAt     DateTime?
+  status       String    @default("OPEN") // OPEN | CLOSED | GRACE | MISSED
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  schedule     ContributionSchedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+
+  @@unique([scheduleId, cycleNumber])
+  @@index([scheduleId, status])
+  @@index([dueAt])
+  @@index([closesAt])
 }

@@ -16,6 +16,7 @@ mod contract;
 mod errors;
 mod events;
 mod pausable;
+mod reputation;
 mod security;
 mod storage;
 mod token;
@@ -35,6 +36,6 @@ pub use types::{GroupMilestone, MemberAchievement, MilestoneRecord, AchievementR
 pub use types::{TokenConfig, MultiTokenConfig, TokenContribution};
 pub use types::{Dispute, DisputeType, DisputeStatus, DisputeResolution, DisputeVote};
 pub use types::{GroupTemplate, TemplateConfig};
-pub use types::{LoanRequest, LoanStatus, LoanVote};
-pub use types::{EmergencyRequest, EmergencyStatus, EmergencyVote};
-pub use types::{InsuranceClaim, InsurancePool, InsuranceConfig, ClaimStatus};
+pub use types::{
+    ReputationScore, ReputationTier, CreditScoreSnapshot, PaymentHistoryEntry, ScoreChangeReason,
+};

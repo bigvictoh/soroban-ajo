@@ -96,6 +96,13 @@ export function GroupDetailScreen() {
             style={styles.actionBtn}
           />
         )}
+        <Button
+          title="Share / QR Code"
+          onPress={() => router.push(`/group-qr/${id}`)}
+          variant="outline"
+          size="lg"
+          style={styles.actionBtn}
+        />
 
         {/* Recent Transactions */}
         <Text style={styles.sectionTitle}>Recent Transactions</Text>

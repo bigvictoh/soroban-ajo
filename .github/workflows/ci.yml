@@ -42,7 +42,7 @@ jobs:
 
       - name: Type Check Frontend
         run: cd frontend && npm run type-check
-        continue-on-error: true
+        continue-on-error: false
 
       - name: Lint Backend
         run: cd backend && npm run lint
@@ -50,7 +50,7 @@ jobs:
 
       - name: Type Check Backend
         run: cd backend && npm run type-check
-        continue-on-error: true
+        continue-on-error: false
 
   # Job 2: Build Verification
   build:
@@ -73,14 +73,12 @@ jobs:
 
       - name: Build Frontend
         run: cd frontend && npm run build
-        continue-on-error: true
         env:
           NEXT_PUBLIC_STELLAR_NETWORK: testnet
           NEXT_PUBLIC_SOROBAN_RPC_URL: https://soroban-testnet.stellar.org
 
       - name: Build Backend
         run: cd backend && npm run build
-        continue-on-error: true
 
       - name: Upload Frontend Build Artifacts
         if: success()
@@ -89,7 +87,6 @@ jobs:
           name: frontend-build
           path: frontend/.next
           retention-days: 7
-        continue-on-error: true
 
       - name: Upload Backend Build Artifacts
         if: success()
@@ -98,7 +95,6 @@ jobs:
           name: backend-build
           path: backend/dist
           retention-days: 7
-        continue-on-error: true
 
   # Job 3: Smart Contract Build
   contracts:

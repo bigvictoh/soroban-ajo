@@ -3,9 +3,11 @@ import { EMAIL_QUEUE_NAME } from '../queues/emailQueue'
 import { PAYOUT_QUEUE_NAME } from '../queues/payoutQueue'
 import { SYNC_QUEUE_NAME } from '../queues/syncQueue'
 import { NOTIFICATION_QUEUE_NAME } from '../queues/notificationQueue'
+import { SCHEDULE_QUEUE_NAME } from '../queues/scheduleQueue'
 import { processEmailJob } from './emailJob'
 import { processPayoutJob } from './payoutJob'
 import { processReminderJob } from './reminderJob'
+import { processScheduleJob } from './scheduleJob'
 import { logger } from '../utils/logger'
 import { Job } from 'bullmq'
 
@@ -87,6 +89,7 @@ const WORKER_CONCURRENCY = {
   sync: 3,
   notification: 15,
   reminder: 2,
+  schedule: 1,
 }
 
 /**
@@ -135,6 +138,14 @@ export function initializeWorkers() {
   )
   logger.info(`Reminder worker initialized with concurrency ${WORKER_CONCURRENCY.reminder}`)
 
+  // Schedule worker (grace period enforcement + due-date reminders)
+  const scheduleWorker = createWorker(
+    SCHEDULE_QUEUE_NAME,
+    processScheduleJob,
+    WORKER_CONCURRENCY.schedule
+  )
+  logger.info(`Schedule worker initialized with concurrency ${WORKER_CONCURRENCY.schedule}`)
+
   logger.info('All workers initialized successfully')
 
   return {
@@ -143,5 +154,6 @@ export function initializeWorkers() {
     syncWorker,
     notificationWorker,
     reminderWorker,
+    scheduleWorker,
   }
 }

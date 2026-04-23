@@ -21,6 +21,7 @@ import { ProductTour } from './tour/ProductTour'
 import { ThemeToggle } from './ThemeToggle'
 import { useOnboarding } from '@/hooks/useOnboarding'
 import { GlobalSearch } from './GlobalSearch'
+import { LiveRegion } from './LiveRegion'
 
 interface AppLayoutProps {
   children: React.ReactNode
@@ -283,6 +284,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
           </div>
         </footer>
       </div>
+      <LiveRegion />
     
   )
 }
