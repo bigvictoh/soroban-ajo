@@ -4,6 +4,7 @@ import { SYNC_QUEUE_NAME } from '../queues/syncQueue'
 import { REMINDER_QUEUE_NAME } from '../jobs/workers'
 import { addScheduleJob } from '../queues/scheduleQueue'
 import { logger } from '../utils/logger'
+import { backupService } from '../services/backupService'
 
 const ANALYTICS_QUEUE_NAME = 'analytics'
 

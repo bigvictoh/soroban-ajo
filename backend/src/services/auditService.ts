@@ -1,9 +1,19 @@
-import { PrismaClient } from '@prisma/client'
-
-const prisma = new PrismaClient()
-const prismaAny = prisma as any
+import { prisma } from '../config/database'
+import { logger } from '../utils/logger'
 
 export interface AuditLogEntry {
+  actorId: string
+  actorType?: 'USER' | 'ADMIN' | 'SYSTEM'
+  action: string
+  targetType?: string
+  targetId?: string
+  ipAddress?: string
+  userAgent?: string
+  metadata?: Record<string, unknown>
+}
+
+// Keep backward-compat alias used by existing code
+export interface AuditLogEntry_Legacy {
   adminId: string
   action: string
   targetType: string
@@ -12,71 +22,75 @@ export interface AuditLogEntry {
   ipAddress?: string
 }
 
-/**
- * Creates a new administrative audit log entry in the database.
- * Use this to record sensitive admin actions (e.g., modifying users, clearing flags).
- * 
- * @param entry - The audit log details including actor, action, and target
- * @returns Promise resolving to the created audit log record
- */
-export async function auditLog(entry: AuditLogEntry) {
-  return prismaAny.adminAuditLog.create({
-    data: {
-      adminId: entry.adminId,
-      action: entry.action,
-      targetType: entry.targetType,
-      targetId: entry.targetId,
-      metadata: entry.metadata as any,
-      ipAddress: entry.ipAddress,
-    },
-  })
+export async function auditLog(entry: AuditLogEntry | AuditLogEntry_Legacy) {
+  // Normalise legacy shape
+  const normalised: AuditLogEntry = 'adminId' in entry
+    ? { actorId: entry.adminId, actorType: 'ADMIN', action: entry.action, targetType: entry.targetType, targetId: entry.targetId, ipAddress: entry.ipAddress, metadata: entry.metadata }
+    : entry
+
+  try {
+    return await prisma.auditLog.create({ data: { ...normalised, actorType: normalised.actorType ?? 'USER' } })
+  } catch (err) {
+    logger.error('Failed to write audit log', { error: err instanceof Error ? err.message : String(err), entry: normalised })
+  }
 }
 
-/**
- * Retrieves a paginated list of administrative audit logs with optional filters.
- * 
- * @param params - Query parameters for filtering and pagination
- * @param params.adminId - Filter by a specific administrator
- * @param params.action - Filter by a specific action name
- * @param params.targetType - Filter by target entity type
- * @param params.startDate - Return logs created after this date
- * @param params.endDate - Return logs created before this date
- * @param params.page - Page number for results (default: 1)
- * @param params.limit - Records per page (default: 50)
- * @returns Promise resolving to the logs, total count, and pagination info
- */
-export async function getAuditLogs(params: {
-  adminId?: string
+export async function searchAuditLogs(params: {
+  actorId?: string
   action?: string
   targetType?: string
+  targetId?: string
   startDate?: Date
   endDate?: Date
   page?: number
   limit?: number
 }) {
   const { page = 1, limit = 50 } = params
-
-  const where: Record<string, unknown> = {}
-  if (params.adminId) where.adminId = params.adminId
-  if (params.action) where.action = params.action
-  if (params.targetType) where.targetType = params.targetType
-  if (params.startDate || params.endDate) {
-    where.createdAt = {
-      ...(params.startDate ? { gte: params.startDate } : {}),
-      ...(params.endDate ? { lte: params.endDate } : {}),
-    }
+  const where = {
+    ...(params.actorId && { actorId: params.actorId }),
+    ...(params.action && { action: { contains: params.action, mode: 'insensitive' as const } }),
+    ...(params.targetType && { targetType: params.targetType }),
+    ...(params.targetId && { targetId: params.targetId }),
+    ...((params.startDate || params.endDate) && {
+      createdAt: {
+        ...(params.startDate ? { gte: params.startDate } : {}),
+        ...(params.endDate ? { lte: params.endDate } : {}),
+      },
+    }),
   }
 
   const [logs, total] = await Promise.all([
-    prismaAny.adminAuditLog.findMany({
-      where: where as any,
-      orderBy: { createdAt: 'desc' },
-      skip: (page - 1) * limit,
-      take: limit,
-      include: { admin: { select: { email: true, role: true } } },
-    }),
-    prismaAny.adminAuditLog.count({ where: where as any }),
+    prisma.auditLog.findMany({ where, orderBy: { createdAt: 'desc' }, skip: (page - 1) * limit, take: limit }),
+    prisma.auditLog.count({ where }),
   ])
 
   return { logs, total, page, pages: Math.ceil(total / limit) }
+}
+
+// Keep backward-compat name
+export const getAuditLogs = searchAuditLogs
+
+export async function purgeAuditLogs(retentionDays = 90): Promise<{ deleted: number }> {
+  const cutoff = new Date(Date.now() - retentionDays * 24 * 60 * 60 * 1000)
+  const { count } = await prisma.auditLog.deleteMany({ where: { createdAt: { lt: cutoff } } })
+  logger.info('Audit log purge complete', { deleted: count, retentionDays })
+  return { deleted: count }
+}
+
+export async function generateComplianceReport(startDate: Date, endDate: Date) {
+  const [total, byAction, byActor, byTarget] = await Promise.all([
+    prisma.auditLog.count({ where: { createdAt: { gte: startDate, lte: endDate } } }),
+    prisma.auditLog.groupBy({ by: ['action'], where: { createdAt: { gte: startDate, lte: endDate } }, _count: { action: true }, orderBy: { _count: { action: 'desc' } } }),
+    prisma.auditLog.groupBy({ by: ['actorId', 'actorType'], where: { createdAt: { gte: startDate, lte: endDate } }, _count: { actorId: true }, orderBy: { _count: { actorId: 'desc' } }, take: 20 }),
+    prisma.auditLog.groupBy({ by: ['targetType'], where: { createdAt: { gte: startDate, lte: endDate }, targetType: { not: null } }, _count: { targetType: true }, orderBy: { _count: { targetType: 'desc' } } }),
+  ])
+
+  return {
+    period: { startDate, endDate },
+    summary: { totalEvents: total },
+    topActions: byAction.map(r => ({ action: r.action, count: r._count.action })),
+    topActors: byActor.map(r => ({ actorId: r.actorId, actorType: r.actorType, count: r._count.actorId })),
+    targetBreakdown: byTarget.map(r => ({ targetType: r.targetType, count: r._count.targetType })),
+    generatedAt: new Date(),
+  }
 }
