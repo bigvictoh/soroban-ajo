@@ -5,6 +5,12 @@ import dotenv from 'dotenv'
 import { createServer } from 'http'
 import { errorHandler } from './middleware/errorHandler'
 import { requestLogger } from './middleware/requestLogger'
+import {
+  enhancedLoggingMiddleware,
+  errorLoggingMiddleware,
+  performanceMonitoringMiddleware,
+  requestBodyLoggingMiddleware,
+} from './middleware/enhancedLogging'
 import { logger } from './utils/logger'
 import { groupsRouter } from './routes/groups'
 import { healthRouter } from './routes/health'
@@ -51,6 +57,9 @@ app.use(ddosProtection)
 app.use(requestThrottle)
 
 app.use(requestLogger)
+app.use(enhancedLoggingMiddleware)
+app.use(performanceMonitoringMiddleware(1000)) // Log requests slower than 1 second
+app.use(requestBodyLoggingMiddleware)
 app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
 
@@ -99,6 +108,7 @@ app.use((req, res) => {
 })
 
 // Error handling
+app.use(errorLoggingMiddleware)
 app.use(errorHandler)
 
 // Start server and keep reference so we can close it on shutdown
