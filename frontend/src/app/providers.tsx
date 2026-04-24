@@ -56,7 +56,12 @@ export function Providers({ children }: { children: React.ReactNode }) {
           <NotificationProvider>
             <OnboardingInitializer />
             {children}
-            <Toaster position="top-right" />
+            <Toaster
+              position="top-right"
+              toastOptions={{ duration: 4000 }}
+              containerStyle={{ zIndex: 9999 }}
+              gutter={8}
+            />
           </NotificationProvider>
         </AuthProvider>
       </ThemeProvider>
