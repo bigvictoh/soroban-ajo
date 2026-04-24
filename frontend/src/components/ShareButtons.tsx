@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import {
   shareViaEmail,
   shareViaTwitter,
@@ -19,6 +20,12 @@ export default function ShareButtons({
   inviteLink,
   email,
 }: ShareButtonsProps) {
+  const [isShareSupported, setIsShareSupported] = useState(false);
+
+  useEffect(() => {
+    setIsShareSupported(typeof navigator !== 'undefined' && !!navigator.share);
+  }, []);
+
   const handleWebShare = async () => {
     const shared = await shareViaWebShare(groupName, inviteLink);
     if (!shared) {
@@ -104,7 +111,7 @@ export default function ShareButtons({
       </button>
 
       {/* Web Share (Mobile) */}
-      {typeof navigator !== 'undefined' && navigator.share && (
+      {isShareSupported && (
         <button
           onClick={handleWebShare}
           className="col-span-2 sm:col-span-4 flex items-center justify-center gap-2 p-4 bg-purple-100 dark:bg-purple-900/30 hover:bg-purple-200 dark:hover:bg-purple-900/50 rounded-lg transition-colors"

@@ -22,8 +22,9 @@ import { ThemeToggle } from './ThemeToggle'
 import { useOnboarding } from '@/hooks/useOnboarding'
 import { GlobalSearch } from './GlobalSearch'
 import { LiveRegion } from './LiveRegion'
+import { WalletConnector } from './WalletConnector'
+import NotificationBell from './NotificationBell'
 import { PWAUpdateBanner } from './PWAUpdateBanner'
-import { GlobalShortcutsProvider } from './GlobalShortcutsProvider'
 
 interface AppLayoutProps {
   children: React.ReactNode
@@ -69,6 +70,27 @@ const NAV_ITEMS = [
 export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
   const pathname = usePathname()
   const { hasCompletedOnboarding, startOnboarding } = useOnboarding()
+
+  useEffect(() => {
+    // PWA Service Worker Registration
+    if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
+      navigator.serviceWorker
+        .register('/sw.js')
+        .then((registration) => {
+          console.log('SW registered: ', registration)
+
+          // Background Sync registration if supported
+          if ('sync' in registration) {
+            (registration as ServiceWorkerRegistration & { sync: any }).sync
+              .register('sync-contributions')
+              .catch(console.error)
+          }
+        })
+        .catch((registrationError) => {
+          console.log('SW registration failed: ', registrationError)
+        })
+    }
+  }, [])
 
   useEffect(() => {
     if (!hasCompletedOnboarding && pathname === '/') {
@@ -258,7 +280,6 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
       </footer>
       <LiveRegion />
       <PWAUpdateBanner />
-      <GlobalShortcutsProvider />
-    
+    </div>
   )
 }
