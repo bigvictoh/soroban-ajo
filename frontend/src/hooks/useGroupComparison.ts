@@ -3,7 +3,7 @@
 import { useState, useCallback } from 'react'
 import { Group } from '@/types'
 
-const MAX_COMPARE = 3
+export const MAX_COMPARE = 4
 
 export function useGroupComparison() {
   const [selectedGroups, setSelectedGroups] = useState<Group[]>([])
