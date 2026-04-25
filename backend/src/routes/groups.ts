@@ -12,6 +12,11 @@ import {
   paginationQuerySchema,
 } from '../validators/groups'
 import { scheduleRouter } from './schedule'
+import {
+  getGroupActivityFeed,
+  getGroupActivitySummary,
+} from '../controllers/activity.controller'
+import { requireGroupMember } from '../middleware/groups'
 
 const router = Router()
 const controller = new GroupsController()
@@ -239,5 +244,21 @@ router.get(
 
 // Contribution schedule sub-router
 router.use('/:id/schedule', scheduleRouter)
+
+// Group activity feed
+router.get(
+  '/:id/activity',
+  validateRequest({ params: groupIdParamSchema }),
+  requireGroupMember,
+  getGroupActivityFeed
+)
+
+// Group activity summary
+router.get(
+  '/:id/activity/summary',
+  validateRequest({ params: groupIdParamSchema }),
+  requireGroupMember,
+  getGroupActivitySummary
+)
 
 export const groupsRouter = router
