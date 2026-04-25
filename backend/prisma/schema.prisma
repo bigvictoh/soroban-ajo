@@ -56,6 +56,11 @@ model User {
   leaderboardEntries LeaderboardCache[] @relation("LeaderboardEntries")
   reminderPreferences ReminderPreferences?
 
+  // Payment Gateway
+  paymentMethods PaymentMethod[]
+  payments       Payment[]
+  refunds        PaymentRefund[]
+
   @@index([walletAddress])
 }
 

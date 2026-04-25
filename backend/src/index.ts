@@ -107,6 +107,14 @@ app.use('/api/templates', templatesRouter)
 // Admin
 app.use('/api/admin', adminRouter)
 
+// Payments
+import { paymentsRouter } from './routes/payments'
+app.use('/api/payments', paymentsRouter)
+
+// Payment Webhooks (no auth required - verified by signature)
+import { paymentWebhooksRouter } from './routes/paymentWebhooks'
+app.use('/api/webhooks/payments', paymentWebhooksRouter)
+
 // 404 handler
 app.use((req, res) => {
   res.status(404).json({
