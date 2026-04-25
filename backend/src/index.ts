@@ -115,6 +115,10 @@ app.use('/api/payments', paymentsRouter)
 import { paymentWebhooksRouter } from './routes/paymentWebhooks'
 app.use('/api/webhooks/payments', paymentWebhooksRouter)
 
+// E2E Encryption key exchange — Issue #611
+import { e2eRouter } from './routes/e2e'
+app.use('/api/e2e', strictLimiter, e2eRouter)
+
 // 404 handler
 app.use((req, res) => {
   res.status(404).json({
