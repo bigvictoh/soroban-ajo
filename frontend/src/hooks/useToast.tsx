@@ -1,110 +1,61 @@
 'use client';
 
 import { useCallback } from 'react';
-import toast, { ToastPosition } from 'react-hot-toast';
+import { useToastContext } from '@/components/toast';
 import { useNotificationStore } from '@/store/notificationStore';
-import { ToastType } from '@/components/Toast';
+import type { ToastOptions, ToastPosition, ToastType } from '@/components/toast';
 
-export interface ToastAction {
-  label: string;
-  onClick: () => void;
-}
+export type { ToastOptions, ToastPosition, ToastType };
 
-export interface ToastOptions {
-  title?: string;
-  /** Duration in ms. 0 = persistent until dismissed. */
-  duration?: number;
-  position?: ToastPosition;
-  action?: ToastAction;
-}
-
-const ICONS: Record<ToastType, string> = {
-  success: '✅',
-  error: '❌',
-  warning: '⚠️',
-  info: 'ℹ️',
-};
-
-const DEFAULT_DURATION: Record<ToastType, number> = {
-  success: 4000,
-  error: 6000,
-  warning: 5000,
-  info: 4000,
-};
-
-const BG: Record<ToastType, string> = {
-  success: '#f0fdf4',
-  error: '#fef2f2',
-  warning: '#fffbeb',
-  info: '#eff6ff',
-};
-
-const BORDER: Record<ToastType, string> = {
-  success: '#22c55e',
-  error: '#ef4444',
-  warning: '#f59e0b',
-  info: '#3b82f6',
-};
-
+/**
+ * useToast — elegant toast notification hook.
+ *
+ * Usage:
+ *   const toast = useToast();
+ *   toast.success('Saved!');
+ *   toast.error('Something went wrong', { title: 'Error', duration: 8000 });
+ *   toast.loading('Processing...');
+ *   const id = toast.loading('Uploading...');
+ *   toast.update(id, 'success', 'Done!');
+ *   toast.promise(fetchData(), { loading: '...', success: 'Done', error: 'Failed' });
+ *   toast.custom(<MyComponent />, { position: 'bottom-center' });
+ */
 export function useToast() {
+  const { add, dismiss, dismissAll, update, setPosition } = useToastContext();
   const addNotification = useNotificationStore((s) => s.addNotification);
 
   const show = useCallback(
-    (type: ToastType, message: string, opts?: ToastOptions) => {
-      const duration = opts?.duration === 0 ? Infinity : (opts?.duration ?? DEFAULT_DURATION[type]);
-
-      // Persist to notification history
-      addNotification({ type, message });
-
-      return toast(
-        (t) => (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 4, maxWidth: 320 }}>
-            {opts?.title && (
-              <span style={{ fontWeight: 600, fontSize: 14 }}>{opts.title}</span>
-            )}
-            <span style={{ fontSize: 14 }}>{message}</span>
-            {opts?.action && (
-              <button
-                onClick={() => {
-                  opts.action!.onClick();
-                  toast.dismiss(t.id);
-                }}
-                style={{
-                  alignSelf: 'flex-start',
-                  marginTop: 4,
-                  padding: '2px 10px',
-                  fontSize: 12,
-                  fontWeight: 600,
-                  borderRadius: 4,
-                  border: `1px solid ${BORDER[type]}`,
-                  background: 'transparent',
-                  color: BORDER[type],
-                  cursor: 'pointer',
-                }}
-              >
-                {opts.action.label}
-              </button>
-            )}
-          </div>
-        ),
-        {
-          icon: ICONS[type],
-          duration,
-          position: opts?.position,
-          style: {
-            background: BG[type],
-            borderLeft: `4px solid ${BORDER[type]}`,
-            padding: '12px 16px',
-            maxWidth: 380,
-          },
-          ariaProps: {
-            role: type === 'error' ? 'alert' : 'status',
-            'aria-live': type === 'error' ? 'assertive' : 'polite',
-          },
-        }
-      );
+    (type: ToastType, message: string, opts?: ToastOptions): string => {
+      // Persist non-loading toasts to notification history
+      if (type !== 'loading' && type !== 'custom') {
+        addNotification({ type: type as 'success' | 'error' | 'warning' | 'info', message });
+      }
+      return add(type, message, opts);
     },
-    [addNotification]
+    [add, addNotification]
+  );
+
+  const promise = useCallback(
+    async <T,>(
+      p: Promise<T>,
+      msgs: { loading: string; success: string | ((data: T) => string); error: string | ((err: unknown) => string) },
+      opts?: Omit<ToastOptions, 'duration'>
+    ): Promise<T> => {
+      const id = show('loading', msgs.loading, { ...opts, id: opts?.id });
+      try {
+        const data = await p;
+        const successMsg = typeof msgs.success === 'function' ? msgs.success(data) : msgs.success;
+        update(id, { type: 'success', message: successMsg, duration: 4000 });
+        addNotification({ type: 'success', message: successMsg });
+        return data;
+      } catch (err) {
+        const errorMsg = typeof msgs.error === 'function' ? msgs.error(err) : msgs.error;
+        update(id, { type: 'error', message: errorMsg, duration: 6000 });
+        addNotification({ type: 'error', message: errorMsg });
+        throw err;
+      }
+    },
+    [show, update, addNotification]
   );
 
   return {
@@ -112,16 +63,18 @@ export function useToast() {
     error: (msg: string, opts?: ToastOptions) => show('error', msg, opts),
     warning: (msg: string, opts?: ToastOptions) => show('warning', msg, opts),
     info: (msg: string, opts?: ToastOptions) => show('info', msg, opts),
-    dismiss: (id?: string) => toast.dismiss(id),
-    dismissAll: () => toast.dismiss(),
-    /** Wrap a promise: shows loading → success/error automatically */
-    promise: <T,>(
-      p: Promise<T>,
-      msgs: { loading: string; success: string; error: string },
-      opts?: Pick<ToastOptions, 'position'>
-    ) => {
-      addNotification({ type: 'info', message: msgs.loading });
-      return toast.promise(p, msgs, { position: opts?.position });
+    loading: (msg: string, opts?: ToastOptions) => show('loading', msg, opts),
+    custom: (render: (dismiss: () => void) => React.ReactNode, opts?: ToastOptions) => {
+      const id = add('custom', '', { ...opts, render });
+      return id;
     },
+    /** Update an existing toast (e.g. loading → success) */
+    update: (id: string, type: ToastType, message: string, opts?: ToastOptions) =>
+      update(id, { type, message, duration: opts?.duration, ...opts }),
+    dismiss,
+    dismissAll,
+    /** Change the global toast position */
+    setPosition,
+    promise,
   };
 }

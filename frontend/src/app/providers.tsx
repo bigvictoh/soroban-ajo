@@ -5,11 +5,11 @@ import { ThemeProvider } from '@/context/ThemeContext'
 import { OfflineProvider } from '@/context/OfflineContext'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { useState, useEffect } from 'react'
-import { Toaster } from 'react-hot-toast'
 import { useOnboarding } from '@/hooks/useOnboarding'
 import { NotificationProvider } from '@/components/NotificationProvider'
 import { HelpProvider } from '@/contexts/HelpContext'
 import HelpPanel from '@/components/help/HelpPanel'
+import { ToastProvider } from '@/components/toast'
 
 function OnboardingInitializer() {
   const startOnboardingIfNew = useOnboarding((s) => s.startOnboardingIfNew)
@@ -56,17 +56,13 @@ export function Providers({ children }: { children: React.ReactNode }) {
       <ThemeProvider>
         <AuthProvider>
           <HelpProvider>
-            <NotificationProvider>
-              <OnboardingInitializer />
-              {children}
-              <HelpPanel />
-              <Toaster
-                position="top-right"
-                toastOptions={{ duration: 4000 }}
-                containerStyle={{ zIndex: 9999 }}
-                gutter={8}
-              />
-            </NotificationProvider>
+            <ToastProvider defaultPosition="top-right" maxVisible={5}>
+              <NotificationProvider>
+                <OnboardingInitializer />
+                {children}
+                <HelpPanel />
+              </NotificationProvider>
+            </ToastProvider>
           </HelpProvider>
         </AuthProvider>
       </ThemeProvider>

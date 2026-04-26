@@ -18,6 +18,12 @@ export interface Group {
   invitedMembers?: string[]
   category?: string
   isBookmarked?: boolean
+  /** 0–100 percentage of cycles completed on time */
+  successRate?: number
+  /** Average days from cycle end to payout */
+  avgPayoutDays?: number
+  /** 0–100 community reputation score */
+  reputationScore?: number
 }
 
 export interface Member {
